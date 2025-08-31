@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibel-Audio Review-Tool</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #bb86fc;
+            --text-color: #e0e0e0;
+            --green-color: #03dac6;
+            --red-color: #cf6679;
+            --gray-color: #333;
+            --orange-color: #f39c12;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .hidden { display: none !important; }
+
+        /* --- Ready Screen --- */
+        #ready-screen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            text-align: center;
+        }
+        #ready-screen button {
+            font-size: 3rem;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s ease;
+            background-color: var(--primary-color); 
+            color: var(--bg-color);
+        }
+        #ready-screen button:disabled {
+            background-color: var(--gray-color);
+            cursor: not-allowed;
+        }
+        #ready-screen button:active:not(:disabled) { transform: scale(0.98); }
+
+
+        /* --- Main App Layout --- */
+        #main-app {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+        #sidebar {
+            width: 300px;
+            min-width: 250px;
+            background-color: var(--surface-color);
+            padding: 1rem;
+            overflow-y: auto;
+            border-right: 1px solid var(--gray-color);
+        }
+        #sidebar h2 { margin-top: 0; }
+        #sidebar ul { list-style: none; padding: 0; margin: 0; }
+        #sidebar li {
+            padding: 0.5rem;
+            margin-bottom: 0.25rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #sidebar li:hover { background-color: #2a2a2a; }
+        #sidebar li.active { background-color: var(--primary-color); color: var(--bg-color); }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid #555;
+            background-color: white; /* Default: Not reviewed */
+            flex-shrink: 0;
+        }
+        .status-dot.status-partial { background-color: var(--orange-color); }
+        .status-dot.status-ok { background-color: var(--green-color); }
+        .status-dot.status-issue { background-color: var(--red-color); }
+
+
+        #review-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+        }
+        
+        #info-panel { text-align: center; }
+        #current-item-display { font-size: 2.5rem; margin: 0; }
+        #progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: var(--gray-color);
+            border-radius: 5px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+        #progress-bar-inner {
+            width: 0%;
+            height: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.2s;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 2rem 0;
+        }
+        #controls button {
+            height: 150px;
+            font-size: 2.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s ease;
+        }
+        #controls button:active { transform: scale(0.98); }
+        #ok-button { background-color: var(--green-color); color: var(--bg-color); }
+        #issue-button { background-color: var(--red-color); color: var(--bg-color); }
+
+        #settings {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            padding: 1rem;
+            background-color: var(--surface-color);
+            border-radius: 8px;
+        }
+        #settings label { font-size: 1rem; }
+        #playback-rate { width: 150px; }
+        #new-chapter-button { font-size: 1rem; padding: 0.5rem 1rem; background-color: var(--primary-color); color: var(--bg-color); border: none; border-radius: 4px; cursor: pointer; }
+        
+        #comment-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #comment-modal-content {
+            background-color: var(--surface-color);
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+        #comment-textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 1rem;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--gray-color);
+            padding: 0.5rem;
+            box-sizing: border-box;
+        }
+        #comment-modal-content button {
+             font-size: 1rem; padding: 0.8rem 1.5rem; margin-right: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ======== READY SCREEN ======== -->
+    <div id="ready-screen">
+        <div>
+            <h1>Bereit für das Review?</h1>
+            <p id="loading-status">Lade Daten...</p>
+            <button id="start-review-button" disabled>Start</button>
+        </div>
+    </div>
+
+    <!-- ======== MAIN APPLICATION ======== -->
+    <div id="main-app" class="hidden">
+        <aside id="sidebar">
+            <h2>Bibelübersicht</h2>
+            <div id="sidebar-content"></div>
+        </aside>
+
+        <main id="review-panel">
+            <div id="info-panel">
+                <h2 id="current-item-display">Lade Kapitel...</h2>
+                <audio id="audio-player"></audio>
+                <div id="progress-bar">
+                    <div id="progress-bar-inner"></div>
+                </div>
+            </div>
+
+            <div id="controls">
+                <button id="issue-button">Problem melden</button>
+                <button id="ok-button">OK</button>
+            </div>
+
+            <div id="settings">
+                <label for="playback-rate">Geschwindigkeit:</label>
+                <input type="range" id="playback-rate" min="0.5" max="2" step="0.1" value="1">
+                <button id="new-chapter-button">Zufälliges neues Kapitel</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- ======== COMMENT MODAL ======== -->
+    <div id="comment-modal" class="hidden">
+        <div id="comment-modal-content">
+            <h3>Problem beschreiben</h3>
+            <textarea id="comment-textarea" placeholder="z.B. Falsche Betonung, Störgeräusch bei 0:03, ..."></textarea>
+            <button id="submit-comment-button" style="background-color: var(--primary-color); color: var(--bg-color);">Kommentar speichern</button>
+            <button id="cancel-comment-button">Abbrechen</button>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // Import Turso/libSQL client from a CDN
+        import { createClient } from "https://esm.sh/@libsql/client/web";
+
+        // ====================================================================
+        // --- CONFIGURATION ---
+        // Bitte tragen Sie hier Ihre Werte ein.
+        // ====================================================================
+        const CONFIG = {
+            jsonUrl: 'https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/bibel.json', // URL zu Ihrer bibel_struktur.json
+            baseUrl: 'https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/wav',     // Basis-URL zu Ihrem /wav Ordner
+            tursoUrl: 'libsql://arn-review-fschutt.aws-us-east-1.turso.io',       // Ihre Turso Datenbank URL
+            tursoToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NTY2MzU2NzUsImlkIjoiMjQ3ZmVkYmItZTc2Ny00M2ZmLTllYzAtYjQ2OTBhYzFmNTk0IiwicmlkIjoiOWZjMWI2YTYtY2ZiYS00NmRkLWE1NzItYTBhOTZjNzQzMDRkIn0.FFzTzg8hHCC3s0dy6k0P49hD_Rj-T_H1Cb2497XiOoJPCTVvAtcF6I1cQEqbVGucxvKULRkxyJJjUVYe_cRNDQ'             // Ihr Turso Authentifizierungs-Token
+        };
+        // ====================================================================
+
+
+        // --- DOM Elements ---
+        const readyScreen = document.getElementById('ready-screen');
+        const mainApp = document.getElementById('main-app');
+        const loadingStatus = document.getElementById('loading-status');
+        const startReviewButton = document.getElementById('start-review-button');
+        
+        const audioPlayer = document.getElementById('audio-player');
+        const currentItemDisplay = document.getElementById('current-item-display');
+        const progressBarInner = document.getElementById('progress-bar-inner');
+        const sidebarContent = document.getElementById('sidebar-content');
+        
+        const okButton = document.getElementById('ok-button');
+        const issueButton = document.getElementById('issue-button');
+        const newChapterButton = document.getElementById('new-chapter-button');
+        const playbackRateSlider = document.getElementById('playback-rate');
+
+        const commentModal = document.getElementById('comment-modal');
+        const commentTextarea = document.getElementById('comment-textarea');
+        const submitCommentButton = document.getElementById('submit-comment-button');
+        const cancelCommentButton = document.getElementById('cancel-comment-button');
+
+        // --- State Management ---
+        let tursoClient;
+        let bibleStructure = [];
+        let allReviews = {}; // { "Gen1": { "1": "OK", "2": "Fehler" }, ... }
+        let currentChapterId = null;
+        let currentChapterData = null;
+        let currentChunkIndex = 1;
+        let totalChunksInChapter = 0;
+        let isApproved = false; // Flag to control looping
+
+        // --- Initialization ---
+
+        async function initializeApp() {
+            try {
+                // 1. Initialize Turso Client
+                tursoClient = createClient({
+                    url: CONFIG.tursoUrl,
+                    authToken: CONFIG.tursoToken,
+                });
+                loadingStatus.textContent = 'Verbinde mit Datenbank...';
+
+                // 2. Create table if not exists
+                await tursoClient.execute(`
+                    CREATE TABLE IF NOT EXISTS reviews (
+                        chapter_id TEXT,
+                        chunk_index INTEGER,
+                        status TEXT,
+                        PRIMARY KEY (chapter_id, chunk_index)
+                    )
+                `);
+
+                // 3. Fetch Bible structure JSON
+                loadingStatus.textContent = 'Lade Bibel-Struktur...';
+                const response = await fetch(CONFIG.jsonUrl);
+                if (!response.ok) throw new Error(`Bibel-Struktur konnte nicht geladen werden: ${response.statusText}`);
+                bibleStructure = await response.json();
+
+                // 4. Fetch all existing reviews
+                loadingStatus.textContent = 'Lade bestehende Reviews...';
+                await fetchAllReviews();
+
+                loadingStatus.textContent = 'Initialisierung abgeschlossen. Bereit!';
+                startReviewButton.disabled = false;
+            } catch (error) {
+                loadingStatus.textContent = `Fehler bei der Initialisierung: ${error.message}`;
+                console.error(error);
+            }
+        }
+        
+        startReviewButton.addEventListener('click', () => {
+            readyScreen.classList.add('hidden');
+            mainApp.classList.remove('hidden');
+            startReviewing();
+        });
+
+        function startReviewing() {
+            renderSidebar();
+            loadRandomUnreviewedChapter();
+        }
+
+        // --- Core Logic: Data Fetching and State ---
+
+        async function fetchAllReviews() {
+            const result = await tursoClient.execute("SELECT chapter_id, chunk_index, status FROM reviews");
+            allReviews = {};
+            for (const row of result.rows) {
+                if (!allReviews[row.chapter_id]) {
+                    allReviews[row.chapter_id] = {};
+                }
+                allReviews[row.chapter_id][row.chunk_index] = row.status;
+            }
+        }
+        
+        async function updateReviewInDb(chapterId, chunkIndex, status) {
+             try {
+                await tursoClient.execute({
+                    sql: "INSERT INTO reviews (chapter_id, chunk_index, status) VALUES (?, ?, ?) ON CONFLICT(chapter_id, chunk_index) DO UPDATE SET status = excluded.status",
+                    args: [chapterId, chunkIndex, status]
+                });
+                if (!allReviews[chapterId]) allReviews[chapterId] = {};
+                allReviews[chapterId][chunkIndex] = status;
+                updateSidebarStatus(chapterId);
+             } catch (error) {
+                console.error("DB Update Fehler:", error);
+                alert("Fehler beim Speichern des Reviews in der Datenbank.");
+             }
+        }
+
+        // --- Core Logic: Chapter and Chunk Handling ---
+        
+        // Regex to extract abbreviation from a longer book name for creating a short ID like "Gen1"
+        const bookNameRegex = /^(?:([1-4])\.\s*)?([A-Za-z]+)/;
+        function getChapterId(bookName, chapterNum) {
+            const match = bookName.match(bookNameRegex);
+            if (!match) return `${bookName.replace(/[\s.]/g, '')}${chapterNum}`; // Fallback
+            
+            const number = match[1] || '';
+            const name = match[2];
+            let abbr = name.slice(0, 3);
+            if (name === "Chronik") abbr = "Chr";
+            if (name === "Könige") abbr = "Koen";
+            // Add more specific abbreviations if needed
+            
+            return `${number}${abbr}${chapterNum}`;
+        }
+
+        function getChapterStatus(chapterId, totalChunks) {
+            const reviewsForChapter = allReviews[chapterId] || {};
+            const reviewCount = Object.keys(reviewsForChapter).length;
+            
+            if (reviewCount === 0) return 'pending'; // white
+            
+            const hasIssue = Object.values(reviewsForChapter).some(status => status !== 'OK');
+            if (hasIssue) return 'issue'; // red
+            
+            if (reviewCount >= totalChunks) return 'ok'; // green
+
+            return 'partial'; // orange
+        }
+
+
+        function loadRandomUnreviewedChapter() {
+            const unreviewedChapters = [];
+            for (const book of bibleStructure) {
+                for (const chapterNum in book.chapters) {
+                    const totalChunks = book.chapters[chapterNum];
+                    const chapterId = getChapterId(book.book_name, chapterNum);
+                    const status = getChapterStatus(chapterId, totalChunks);
+                    if (status !== 'ok' && status !== 'issue') { // Prioritize chapters without issues
+                        unreviewedChapters.push({ book, chapterNum });
+                    }
+                }
+            }
+
+            if (unreviewedChapters.length === 0) {
+                 // Fallback: choose from chapters with issues if everything else is done
+                for (const book of bibleStructure) {
+                    for (const chapterNum in book.chapters) {
+                        const totalChunks = book.chapters[chapterNum];
+                        const chapterId = getChapterId(book.book_name, chapterNum);
+                        if (getChapterStatus(chapterId, totalChunks) !== 'ok') {
+                           unreviewedChapters.push({ book, chapterNum });
+                        }
+                    }
+                }
+            }
+
+            if (unreviewedChapters.length === 0) {
+                currentItemDisplay.textContent = "Alles Überprüft! 🎉";
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * unreviewedChapters.length);
+            const { book, chapterNum } = unreviewedChapters[randomIndex];
+            loadChapter(book, chapterNum);
+        }
+
+        function loadChapter(book, chapterNum) {
+            currentChapterData = book;
+            currentChapterId = getChapterId(book.book_name, chapterNum);
+            totalChunksInChapter = book.chapters[chapterNum];
+            
+            // Finde den ersten unüberprüften Chunk in diesem Kapitel
+            const reviewsForChapter = allReviews[currentChapterId] || {};
+            let startChunk = 1;
+            for (let i = 1; i <= totalChunksInChapter; i++) {
+                if (!reviewsForChapter[i]) {
+                    startChunk = i;
+                    break;
+                }
+            }
+            currentChunkIndex = startChunk;
+            
+            updateActiveSidebarItem();
+            loadChunk(currentChunkIndex);
+        }
+        
+        function loadChunk(chunkIndex) {
+            isApproved = false;
+            currentChunkIndex = chunkIndex;
+            
+            const chapterNum = currentChapterId.match(/\d+$/)[0];
+            currentItemDisplay.textContent = `${currentChapterData.book_name} ${chapterNum}, Chunk ${currentChunkIndex} / ${totalChunksInChapter}`;
+            progressBarInner.style.width = `${(currentChunkIndex - 1) / totalChunksInChapter * 100}%`;
+
+            const paddedChunk = String(chunkIndex).padStart(3, '0');
+            const audioSrc = `${CONFIG.baseUrl}/${currentChapterId}/${paddedChunk}.wav`;
+            
+            audioPlayer.src = audioSrc;
+            audioPlayer.playbackRate = playbackRateSlider.value;
+            audioPlayer.play().catch(e => console.error("Playback error:", e));
+        }
+
+        function advanceToNext() {
+            if (currentChunkIndex < totalChunksInChapter) {
+                loadChunk(currentChunkIndex + 1);
+            } else {
+                // Chapter finished, load a new one
+                loadRandomUnreviewedChapter();
+            }
+        }
+
+
+        // --- UI Rendering ---
+
+        function renderSidebar() {
+            let html = '<ul>';
+            for (const book of bibleStructure) {
+                html += `<li><strong>${book.book_name}</strong></li>`;
+                 const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
+                for (const chapterNum of sortedChapters) {
+                    const chapterId = getChapterId(book.book_name, chapterNum);
+                    html += `
+                        <li data-chapter-id="${chapterId}" data-book-name="${book.book_name}" data-chapter-num="${chapterNum}">
+                            <span>&nbsp;&nbsp;Kapitel ${chapterNum}</span>
+                            <span class="status-dot" id="status-${chapterId}"></span>
+                        </li>
+                    `;
+                }
+            }
+            html += '</ul>';
+            sidebarContent.innerHTML = html;
+            
+            // Add event listeners after rendering
+            document.querySelectorAll('#sidebar li[data-chapter-id]').forEach(li => {
+                 li.addEventListener('click', () => {
+                    const bookName = li.dataset.bookName;
+                    const chapterNum = li.dataset.chapterNum;
+                    const book = bibleStructure.find(b => b.book_name === bookName);
+                    loadChapter(book, chapterNum);
+                });
+
+                // Set initial status color
+                updateSidebarStatus(li.dataset.chapterId);
+            });
+        }
+        
+        function updateSidebarStatus(chapterId) {
+            const dot = document.getElementById(`status-${chapterId}`);
+            if (!dot) return;
+            
+            const chapterNum = chapterId.match(/\d+$/)[0];
+            const bookName = dot.parentElement.dataset.bookName;
+            const bookData = bibleStructure.find(b => b.book_name === bookName);
+            const totalChunks = bookData.chapters[chapterNum];
+
+            const status = getChapterStatus(chapterId, totalChunks);
+            dot.className = 'status-dot'; // Reset
+            if (status === 'ok') dot.classList.add('status-ok');
+            else if (status === 'issue') dot.classList.add('status-issue');
+            else if (status === 'partial') dot.classList.add('status-partial');
+        }
+
+        function updateActiveSidebarItem() {
+            document.querySelectorAll('#sidebar li.active').forEach(li => li.classList.remove('active'));
+            const activeLi = document.querySelector(`#sidebar li[data-chapter-id="${currentChapterId}"]`);
+            if (activeLi) {
+                activeLi.classList.add('active');
+                activeLi.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // --- Event Listeners ---
+        
+        okButton.addEventListener('click', () => {
+            isApproved = true;
+            updateReviewInDb(currentChapterId, currentChunkIndex, 'OK');
+            advanceToNext();
+        });
+
+        issueButton.addEventListener('click', () => {
+            audioPlayer.pause();
+            commentTextarea.value = '';
+            commentModal.classList.remove('hidden');
+            commentTextarea.focus();
+        });
+        
+        newChapterButton.addEventListener('click', loadRandomUnreviewedChapter);
+        
+        playbackRateSlider.addEventListener('input', (e) => {
+            audioPlayer.playbackRate = e.target.value;
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            if (!isApproved) {
+                // Loop if not approved
+                audioPlayer.currentTime = 0;
+                audioPlayer.play();
+            }
+        });
+
+        // Comment Modal events
+        submitCommentButton.addEventListener('click', () => {
+            const comment = commentTextarea.value.trim();
+            if (comment) {
+                isApproved = true;
+                updateReviewInDb(currentChapterId, currentChunkIndex, comment);
+                commentModal.classList.add('hidden');
+                advanceToNext();
+            } else {
+                alert('Bitte geben Sie einen Kommentar ein.');
+            }
+        });
+
+        cancelCommentButton.addEventListener('click', () => {
+            commentModal.classList.add('hidden');
+            audioPlayer.play(); // Resume playback
+        });
+
+        // --- Start the application on page load ---
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+</body>
+</html>
