@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bibel-Audio Re-Review Tool</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-color: #bb86fc;
+            --text-color: #e0e0e0;
+            --green-color: #03dac6;
+            --red-color: #cf6679;
+            --gray-color: #333;
+            --orange-color: #f39c12;
+            --monospace-font: "SF Mono", "Consolas", "Liberation Mono", Menlo, monospace;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 1.5rem;
+        }
+        .hidden { display: none !important; }
+
+        /* --- Header & Global Settings --- */
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--gray-color);
+            padding-bottom: 1.5rem;
+        }
+        h1 { margin-top: 0; }
+        #loading-status { color: var(--orange-color); }
+        #global-stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+        .stat-item { background-color: var(--surface-color); padding: 0.5rem 1rem; border-radius: 4px; }
+        .stat-item .ok { color: var(--green-color); }
+        .stat-item .issue { color: var(--red-color); }
+        .stat-item .pending { color: var(--orange-color); }
+
+        .prompt-container {
+            margin-top: 1.5rem;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .prompt-container label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        #global-prompt {
+            width: 100%;
+            height: 80px;
+            background-color: var(--surface-color);
+            color: var(--text-color);
+            border: 1px solid var(--gray-color);
+            padding: 0.5rem;
+            box-sizing: border-box;
+            font-family: var(--monospace-font);
+        }
+
+        /* --- Main Content: Book List --- */
+        #book-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .book-section {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .book-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            background-color: #2a2a2a;
+        }
+        .book-header:hover { background-color: #333; }
+        .book-header h2 { margin: 0; font-size: 1.2rem; }
+        .book-stats { display: flex; gap: 1rem; font-size: 0.9rem; }
+        
+        .book-content {
+            padding: 1.5rem;
+            border-top: 1px solid var(--gray-color);
+        }
+
+        /* Chapter Grid */
+        .chapter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+            gap: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .chapter-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--gray-color);
+            border-radius: 4px;
+            cursor: pointer;
+            min-height: 45px;
+            transition: background-color 0.2s ease;
+            font-weight: bold;
+        }
+        .chapter-cell:hover { background-color: #4a4a4a; }
+        .chapter-cell.all-ok { background-color: #015249; color: var(--green-color); } /* Dark green */
+        .chapter-cell.active {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            outline: 2px solid var(--primary-color);
+        }
+
+        /* Chunk Issues Display */
+        .chunk-issues-container { margin-top: 1rem; }
+        .chunk-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--gray-color);
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            font-family: var(--monospace-font);
+        }
+        .chunk-comment {
+            flex-grow: 1;
+            min-width: 200px;
+            font-style: italic;
+            color: var(--orange-color);
+        }
+        .chunk-comment::before { content: 'Chunk #' attr(data-chunk) ': '; font-weight: bold; }
+        .chunk-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .chunk-actions button {
+            font-size: 0.8rem;
+            padding: 0.5rem 0.8rem;
+            background-color: var(--gray-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .chunk-actions .set-ok-btn { background-color: var(--green-color); color: var(--bg-color); }
+
+        @media (max-width: 768px) {
+            body { padding: 0.5rem; }
+            header { padding-bottom: 1rem; margin-bottom: 1rem; }
+            #global-stats { flex-direction: column; gap: 0.5rem; align-items: center; }
+            .book-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Re-Review der problematischen Audio-Chunks</h1>
+        <p id="loading-status">Lade Daten von der Datenbank...</p>
+        <div id="global-stats" class="hidden">
+            <div class="stat-item">Gesamt OK: <span class="ok" id="total-ok">0</span></div>
+            <div class="stat-item">Gesamt Probleme: <span class="issue" id="total-issue">0</span></div>
+            <div class="stat-item">Gesamt Ausstehend: <span class="pending" id="total-pending">0</span></div>
+        </div>
+        <div class="prompt-container">
+            <label for="global-prompt">Globaler Prompt für LLM:</label>
+            <textarea id="global-prompt">Lies mit warmer und freundlicher Stimme vor, aber etwas schneller als gewöhnlich - keine Einführung, sprich alle Namen mit deutscher Betonung aus: </textarea>
+        </div>
+    </header>
+
+    <main id="book-list"></main>
+    
+    <script type="module">
+        import { createClient } from "https://esm.sh/@libsql/client/web";
+
+        const CONFIG = {
+            jsonUrl: 'https://dubiacc.github.io/arn-review/bible.json',
+            textBaseUrl: 'https://corsproxy.fermyon.app/?url=https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/chapters',
+            tursoUrl: 'libsql://arn-review-fschutt.aws-us-east-1.turso.io',
+            tursoToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NTY2MzU2NzUsImlkIjoiMjQ3ZmVkYmItZTc2Ny00M2ZmLTllYzAtYjQ2OTBhYzFmNTk0IiwicmlkIjoiOWZjMWI2YTYtY2ZiYS00NmRkLWE1NzItYTBhOTZjNzQzMDRkIn0.FFzTzg8hHCC3s0dy6k0P49hD_Rj-T_H1Cb2497XiOoJPCTVvAtcF6I1cQEqbVGucxvKULRkxyJJjUVYe_cRNDQ'
+        };
+
+        // --- DOM Elements ---
+        const loadingStatus = document.getElementById('loading-status');
+        const globalStatsEl = document.getElementById('global-stats');
+        const bookListEl = document.getElementById('book-list');
+        
+        // --- State ---
+        let tursoClient;
+        let bibleStructure = [];
+        let allReviews = {}; // Format: { "Gen1": { "1": "OK", "5": "Issue" }, ... }
+        let bookStats = {}; // To store calculated stats per book
+
+        async function initializeApp() {
+            try {
+                // 1. Initialize Turso Client
+                tursoClient = createClient({ url: CONFIG.tursoUrl, authToken: CONFIG.tursoToken });
+
+                // 2. Fetch all necessary data
+                loadingStatus.textContent = 'Lade Bibel-Struktur und Reviews...';
+                const [structureResponse, reviewsResult] = await Promise.all([
+                    fetch(CONFIG.jsonUrl),
+                    tursoClient.execute("SELECT chapter_id, chunk_index, status FROM reviews")
+                ]);
+
+                if (!structureResponse.ok) throw new Error('Bibel-Struktur konnte nicht geladen werden.');
+                bibleStructure = await structureResponse.json();
+                
+                // Process reviews into a more accessible format
+                for (const row of reviewsResult.rows) {
+                    if (!allReviews[row.chapter_id]) {
+                        allReviews[row.chapter_id] = {};
+                    }
+                    allReviews[row.chapter_id][row.chunk_index] = row.status;
+                }
+
+                // 3. Process data and render the UI
+                loadingStatus.textContent = 'Verarbeite Daten und erstelle Ansicht...';
+                processAndRender();
+
+                loadingStatus.classList.add('hidden');
+                globalStatsEl.classList.remove('hidden');
+
+            } catch (error) {
+                loadingStatus.textContent = `Fehler bei der Initialisierung: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        function calculateStats() {
+            let totalOk = 0, totalIssue = 0, totalPending = 0;
+
+            for (const book of bibleStructure) {
+                let bookOk = 0, bookIssue = 0, bookPending = 0;
+                let totalChunksInBook = 0;
+
+                for (const chapterNum in book.chapters) {
+                    const totalChunksInChapter = book.chapters[chapterNum];
+                    totalChunksInBook += totalChunksInChapter;
+                    const chapterId = book.directory_name + chapterNum;
+                    const reviewsForChapter = allReviews[chapterId] || {};
+                    
+                    let chapterOk = 0, chapterIssue = 0;
+                    Object.values(reviewsForChapter).forEach(status => {
+                        if (status === 'OK') chapterOk++;
+                        else chapterIssue++;
+                    });
+                    
+                    const reviewedCount = chapterOk + chapterIssue;
+                    const chapterPending = totalChunksInChapter - reviewedCount;
+
+                    bookOk += chapterOk;
+                    bookIssue += chapterIssue;
+                    bookPending += chapterPending;
+                }
+
+                bookStats[book.book_name] = { ok: bookOk, issue: bookIssue, pending: bookPending, total: totalChunksInBook };
+                totalOk += bookOk;
+                totalIssue += bookIssue;
+                totalPending += bookPending;
+            }
+
+            // Update global stats display
+            document.getElementById('total-ok').textContent = totalOk;
+            document.getElementById('total-issue').textContent = totalIssue;
+            document.getElementById('total-pending').textContent = totalPending;
+        }
+        
+        function processAndRender() {
+            calculateStats();
+            bookListEl.innerHTML = ''; // Clear previous content
+
+            for (const book of bibleStructure) {
+                const stats = bookStats[book.book_name];
+                
+                const bookSection = document.createElement('div');
+                bookSection.className = 'book-section';
+                bookSection.innerHTML = `
+                    <div class="book-header" data-book-name="${book.book_name}">
+                        <h2>${book.book_name}</h2>
+                        <div class="book-stats">
+                            <span class="ok" title="OK">✔ ${stats.ok}</span>
+                            <span class="issue" title="Probleme">❗ ${stats.issue}</span>
+                            <span class="pending" title="Ausstehend">… ${stats.pending}</span>
+                        </div>
+                    </div>
+                    <div class="book-content hidden">
+                        <div class="chapter-grid"></div>
+                        <div class="chunk-issues-container"></div>
+                    </div>
+                `;
+                bookListEl.appendChild(bookSection);
+                
+                const chapterGrid = bookSection.querySelector('.chapter-grid');
+                const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
+
+                for (const chapterNum of sortedChapters) {
+                    const chapterId = book.directory_name + chapterNum;
+                    const cell = document.createElement('div');
+                    cell.className = 'chapter-cell';
+                    cell.textContent = chapterNum;
+                    cell.dataset.chapterId = chapterId;
+                    
+                    // Check if all chunks in this chapter are OK
+                    const totalChunks = book.chapters[chapterNum];
+                    const reviewsForChapter = allReviews[chapterId] || {};
+                    const okCount = Object.values(reviewsForChapter).filter(s => s === 'OK').length;
+                    if (okCount === totalChunks) {
+                        cell.classList.add('all-ok');
+                    }
+
+                    chapterGrid.appendChild(cell);
+                }
+            }
+            setupEventListeners();
+        }
+        
+        function setupEventListeners() {
+            bookListEl.addEventListener('click', (e) => {
+                const header = e.target.closest('.book-header');
+                const chapterCell = e.target.closest('.chapter-cell');
+
+                if (header) {
+                    const content = header.nextElementSibling;
+                    content.classList.toggle('hidden');
+                }
+
+                if (chapterCell) {
+                    handleChapterClick(chapterCell);
+                }
+            });
+        }
+
+        function handleChapterClick(cell) {
+            // Deactivate any other active chapter cell within the same book
+            const parentGrid = cell.closest('.chapter-grid');
+            parentGrid.querySelectorAll('.chapter-cell.active').forEach(c => c.classList.remove('active'));
+            
+            // Activate the clicked one
+            cell.classList.add('active');
+
+            const chapterId = cell.dataset.chapterId;
+            const issuesContainer = cell.closest('.book-content').querySelector('.chunk-issues-container');
+            issuesContainer.innerHTML = 'Lade problematische Chunks...';
+
+            const issues = [];
+            const reviewsForChapter = allReviews[chapterId] || {};
+            for (const chunkIndex in reviewsForChapter) {
+                const status = reviewsForChapter[chunkIndex];
+                if (status !== 'OK') {
+                    issues.push({ chunkIndex, status });
+                }
+            }
+
+            if (issues.length === 0) {
+                issuesContainer.innerHTML = '<p>🎉 Keine Probleme in diesem Kapitel gefunden.</p>';
+                return;
+            }
+            
+            issues.sort((a, b) => parseInt(a.chunkIndex) - parseInt(b.chunkIndex));
+            
+            issuesContainer.innerHTML = '';
+            for (const issue of issues) {
+                const row = document.createElement('div');
+                row.className = 'chunk-row';
+                row.dataset.chapterId = chapterId;
+                row.dataset.chunkIndex = issue.chunkIndex;
+                
+                const paddedChunk = String(issue.chunkIndex).padStart(3, '0');
+                
+                row.innerHTML = `
+                    <div class="chunk-comment" data-chunk="${issue.chunkIndex}">${issue.status}</div>
+                    <div class="chunk-actions">
+                        <button class="get-prompt-btn">Prompt holen</button>
+                        <button class="copy-rm-btn">Copy rm</button>
+                        <button class="set-ok-btn">Auf OK setzen</button>
+                    </div>
+                `;
+                issuesContainer.appendChild(row);
+                
+                // Add specific listeners for the new buttons
+                row.querySelector('.get-prompt-btn').addEventListener('click', handleGetPrompt);
+                row.querySelector('.copy-rm-btn').addEventListener('click', handleCopyRm);
+                row.querySelector('.set-ok-btn').addEventListener('click', handleSetOk);
+            }
+        }
+
+        async function handleGetPrompt(e) {
+            const button = e.target;
+            const row = button.closest('.chunk-row');
+            const { chapterId, chunkIndex } = row.dataset;
+            const paddedChunk = String(chunkIndex).padStart(3, '0');
+            const textUrl = `${CONFIG.textBaseUrl}/${chapterId}/${paddedChunk}.txt`;
+
+            try {
+                button.textContent = 'Lade...';
+                const response = await fetch(textUrl);
+                if (!response.ok) throw new Error(`Text für ${chapterId}/${paddedChunk} nicht gefunden.`);
+                
+                const textChunk = await response.text();
+                const globalPrompt = document.getElementById('global-prompt').value;
+                const fullPrompt = globalPrompt + textChunk.trim();
+                
+                await navigator.clipboard.writeText(fullPrompt);
+                button.textContent = 'Kopiert!';
+            } catch (error) {
+                console.error(error);
+                button.textContent = 'Fehler!';
+            } finally {
+                setTimeout(() => { button.textContent = 'Prompt holen'; }, 2000);
+            }
+        }
+
+        async function handleCopyRm(e) {
+            const button = e.target;
+            const row = button.closest('.chunk-row');
+            const { chapterId, chunkIndex } = row.dataset;
+            const paddedChunk = String(chunkIndex).padStart(3, '0');
+            const command = `rm /wav/${chapterId}/${paddedChunk}.wav`;
+            
+            await navigator.clipboard.writeText(command);
+            button.textContent = 'Kopiert!';
+            setTimeout(() => { button.textContent = 'Copy rm'; }, 2000);
+        }
+
+        async function handleSetOk(e) {
+            const button = e.target;
+            const row = button.closest('.chunk-row');
+            const { chapterId, chunkIndex } = row.dataset;
+
+            if (!confirm(`Soll Chunk #${chunkIndex} von ${chapterId} wirklich auf "OK" gesetzt werden?`)) {
+                return;
+            }
+
+            try {
+                button.textContent = 'Speichere...';
+                button.disabled = true;
+
+                await tursoClient.execute({
+                    sql: "UPDATE reviews SET status = 'OK' WHERE chapter_id = ? AND chunk_index = ?",
+                    args: [chapterId, parseInt(chunkIndex)]
+                });
+
+                // Update local state
+                if (allReviews[chapterId]) {
+                    allReviews[chapterId][chunkIndex] = 'OK';
+                }
+
+                // Visually remove the row
+                row.style.opacity = '0';
+                setTimeout(() => { 
+                    row.remove();
+                    // Re-calculate and re-render to update stats
+                    processAndRender();
+                }, 300);
+
+            } catch (error) {
+                console.error("DB Update Fehler:", error);
+                alert("Fehler beim Aktualisieren des Status in der Datenbank.");
+                button.textContent = 'Auf OK setzen';
+                button.disabled = false;
+            }
+        }
+        
+        // --- Start the application ---
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+</body>
+</html>
