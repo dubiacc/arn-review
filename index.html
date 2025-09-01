@@ -525,22 +525,6 @@
 
         // --- Core Logic: Chapter and Chunk Handling ---
         
-        // Regex to extract abbreviation from a longer book name for creating a short ID like "Gen1"
-        const bookNameRegex = /^(?:([1-4])\.\s*)?([A-Za-z]+)/;
-        function getChapterId(bookName, chapterNum) {
-            const match = bookName.match(bookNameRegex);
-            if (!match) return `${bookName.replace(/[\s.]/g, '')}${chapterNum}`; // Fallback
-            
-            const number = match[1] || '';
-            const name = match[2];
-            let abbr = name.slice(0, 3);
-            if (name === "Chronik") abbr = "Chr";
-            if (name === "Könige") abbr = "Koen";
-            // Add more specific abbreviations if needed
-            
-            return `${number}${abbr}${chapterNum}`;
-        }
-
         function getChapterStatus(chapterId, totalChunks) {
             const reviewsForChapter = allReviews[chapterId] || {};
             const reviewCount = Object.keys(reviewsForChapter).length;
@@ -563,7 +547,7 @@
             for (const book of bibleStructure) {
                 for (const chapterNum in book.chapters) {
                     const totalChunks = book.chapters[chapterNum];
-                    const chapterId = getChapterId(book.book_name, chapterNum);
+                    const chapterId = book.directory_name + chapterNum;
                     const status = getChapterStatus(chapterId, totalChunks);
                     if (status !== 'ok' && status !== 'issue') { // Prioritize chapters without issues
                         unreviewedChapters.push({ book, chapterNum });
@@ -576,7 +560,7 @@
                 for (const book of bibleStructure) {
                     for (const chapterNum in book.chapters) {
                         const totalChunks = book.chapters[chapterNum];
-                        const chapterId = getChapterId(book.book_name, chapterNum);
+                        const chapterId = book.directory_name + chapterNum;
                         if (getChapterStatus(chapterId, totalChunks) !== 'ok') {
                            unreviewedChapters.push({ book, chapterNum });
                         }
@@ -597,7 +581,7 @@
 
         async function loadChapter(book, chapterNum) {
             currentChapterData = book;
-            currentChapterId = getChapterId(book.book_name, chapterNum);
+            currentChapterId = book.directory_name + chapterNum;
             totalChunksInChapter = book.chapters[chapterNum];
             
             // Finde den ersten unüberprüften Chunk in diesem Kapitel
@@ -638,7 +622,7 @@
                     console.error("Playback error:", e);
                     // Try again after a short delay
                     setTimeout(() => {
-                        audioPlayer.play().catch(e2 => console.error("Second playback attempt failed:", e2));
+                        audioPlayer.play().catch(e2 => console.error("Second playback for ${audioSrc} attempt failed:", e2));
                     }, 100);
                 });
             }, 100);
@@ -653,7 +637,7 @@
                 
                 const response = await fetch(textUrl);
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`ERROR LOADING ${textUrl}: HTTP ${response.status}`);
                 }
                 
                 const text = await response.text();
@@ -706,7 +690,7 @@
                 html += `<li><strong>${book.book_name}</strong></li>`;
                  const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
                 for (const chapterNum of sortedChapters) {
-                    const chapterId = getChapterId(book.book_name, chapterNum);
+                    const chapterId = book.directory_name + chapterNum;
                     html += `
                         <li data-chapter-id="${chapterId}" data-book-name="${book.book_name}" data-chapter-num="${chapterNum}">
                             <span>&nbsp;&nbsp;Kapitel ${chapterNum}</span>
