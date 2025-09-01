@@ -26,6 +26,22 @@
         }
         .hidden { display: none !important; }
 
+        /* --- Mobile hamburger button --- */
+        #mobile-menu-button {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 200;
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
         /* --- Ready Screen --- */
         #ready-screen {
             display: flex;
@@ -51,6 +67,33 @@
         }
         #ready-screen button:active:not(:disabled) { transform: scale(0.98); }
 
+        /* --- Pause Overlay --- */
+        #pause-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 150;
+            flex-direction: column;
+        }
+        #pause-overlay h2 {
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+        #pause-overlay button {
+            font-size: 1.5rem;
+            padding: 1rem 2rem;
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
 
         /* --- Main App Layout --- */
         #main-app {
@@ -65,6 +108,7 @@
             padding: 1rem;
             overflow-y: auto;
             border-right: 1px solid var(--gray-color);
+            transition: transform 0.3s ease;
         }
         #sidebar h2 { margin-top: 0; }
         #sidebar ul { list-style: none; padding: 0; margin: 0; }
@@ -91,7 +135,6 @@
         .status-dot.status-ok { background-color: var(--green-color); }
         .status-dot.status-issue { background-color: var(--red-color); }
 
-
         #review-panel {
             flex-grow: 1;
             display: flex;
@@ -100,8 +143,27 @@
             padding: 2rem;
         }
         
-        #info-panel { text-align: center; }
+        #info-panel { 
+            text-align: center; 
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
         #current-item-display { font-size: 2.5rem; margin: 0; }
+        
+        #text-display {
+            background-color: var(--surface-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+        }
+        
         #progress-bar {
             width: 100%;
             height: 10px;
@@ -125,16 +187,25 @@
         }
         #controls button {
             height: 150px;
-            font-size: 2.5rem;
+            font-size: 2rem;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: bold;
             transition: transform 0.1s ease;
+            position: relative;
         }
         #controls button:active { transform: scale(0.98); }
         #ok-button { background-color: var(--green-color); color: var(--bg-color); }
         #issue-button { background-color: var(--red-color); color: var(--bg-color); }
+
+        .hotkey {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
 
         #settings {
             display: flex;
@@ -147,7 +218,16 @@
         }
         #settings label { font-size: 1rem; }
         #playback-rate { width: 150px; }
-        #new-chapter-button { font-size: 1rem; padding: 0.5rem 1rem; background-color: var(--primary-color); color: var(--bg-color); border: none; border-radius: 4px; cursor: pointer; }
+        #new-chapter-button, #pause-button { 
+            font-size: 1rem; 
+            padding: 0.5rem 1rem; 
+            background-color: var(--primary-color); 
+            color: var(--bg-color); 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-left: 1rem;
+        }
         
         #comment-modal {
             position: fixed;
@@ -181,9 +261,68 @@
         #comment-modal-content button {
              font-size: 1rem; padding: 0.8rem 1.5rem; margin-right: 1rem;
         }
+        #comment-modal-content .hotkey-info {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        /* --- Mobile Styles --- */
+        @media (max-width: 768px) {
+            #mobile-menu-button {
+                display: block;
+            }
+            
+            #main-app {
+                flex-direction: column;
+            }
+            
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 100;
+                transform: translateX(-100%);
+                width: 80%;
+                max-width: 300px;
+            }
+            
+            #sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            #review-panel {
+                width: 100%;
+                padding: 1rem;
+                padding-top: 4rem; /* Account for mobile menu button */
+            }
+            
+            #controls {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            #controls button {
+                height: 100px;
+                font-size: 1.5rem;
+            }
+            
+            #current-item-display {
+                font-size: 1.8rem;
+            }
+            
+            #settings {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
+
+    <!-- ======== MOBILE MENU BUTTON ======== -->
+    <button id="mobile-menu-button">☰</button>
 
     <!-- ======== READY SCREEN ======== -->
     <div id="ready-screen">
@@ -192,6 +331,12 @@
             <p id="loading-status">Lade Daten...</p>
             <button id="start-review-button" disabled>Start</button>
         </div>
+    </div>
+
+    <!-- ======== PAUSE OVERLAY ======== -->
+    <div id="pause-overlay" class="hidden">
+        <h2>Wiedergabe ist pausiert</h2>
+        <button id="resume-button">Weiter? (Leertaste)</button>
     </div>
 
     <!-- ======== MAIN APPLICATION ======== -->
@@ -204,6 +349,7 @@
         <main id="review-panel">
             <div id="info-panel">
                 <h2 id="current-item-display">Lade Kapitel...</h2>
+                <div id="text-display">Text wird geladen...</div>
                 <audio id="audio-player"></audio>
                 <div id="progress-bar">
                     <div id="progress-bar-inner"></div>
@@ -211,13 +357,20 @@
             </div>
 
             <div id="controls">
-                <button id="issue-button">Problem melden</button>
-                <button id="ok-button">OK</button>
+                <button id="issue-button">
+                    Problem melden
+                    <span class="hotkey">E</span>
+                </button>
+                <button id="ok-button">
+                    OK
+                    <span class="hotkey">Enter</span>
+                </button>
             </div>
 
             <div id="settings">
                 <label for="playback-rate">Geschwindigkeit:</label>
                 <input type="range" id="playback-rate" min="0.5" max="2" step="0.1" value="1">
+                <button id="pause-button">Pause (Leertaste)</button>
                 <button id="new-chapter-button">Zufälliges neues Kapitel</button>
             </div>
         </main>
@@ -228,11 +381,11 @@
         <div id="comment-modal-content">
             <h3>Problem beschreiben</h3>
             <textarea id="comment-textarea" placeholder="z.B. Falsche Betonung, Störgeräusch bei 0:03, ..."></textarea>
+            <div class="hotkey-info">Strg+Enter zum Speichern, Esc zum Abbrechen</div>
             <button id="submit-comment-button" style="background-color: var(--primary-color); color: var(--bg-color);">Kommentar speichern</button>
             <button id="cancel-comment-button">Abbrechen</button>
         </div>
     </div>
-
 
     <script type="module">
         // Import Turso/libSQL client from a CDN
@@ -243,13 +396,13 @@
         // Bitte tragen Sie hier Ihre Werte ein.
         // ====================================================================
         const CONFIG = {
-            jsonUrl: 'https://corsproxy.fermyon.app?url=https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/bible.json', // URL zu Ihrer bibel_struktur.json
-            baseUrl: 'https://corsproxy.fermyon.app?url=https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/wav',     // Basis-URL zu Ihrem /wav Ordner
+            jsonUrl: 'https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/bibel.json', // URL zu Ihrer bibel_struktur.json
+            baseUrl: 'https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/wav',     // Basis-URL zu Ihrem /wav Ordner
+            textBaseUrl: 'https://raw.githubusercontent.com/dubiacc/arn/refs/heads/master/chapters', // Basis-URL zu Ihrem /chapters Ordner
             tursoUrl: 'libsql://arn-review-fschutt.aws-us-east-1.turso.io',       // Ihre Turso Datenbank URL
             tursoToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NTY2MzU2NzUsImlkIjoiMjQ3ZmVkYmItZTc2Ny00M2ZmLTllYzAtYjQ2OTBhYzFmNTk0IiwicmlkIjoiOWZjMWI2YTYtY2ZiYS00NmRkLWE1NzItYTBhOTZjNzQzMDRkIn0.FFzTzg8hHCC3s0dy6k0P49hD_Rj-T_H1Cb2497XiOoJPCTVvAtcF6I1cQEqbVGucxvKULRkxyJJjUVYe_cRNDQ'             // Ihr Turso Authentifizierungs-Token
         };
         // ====================================================================
-
 
         // --- DOM Elements ---
         const readyScreen = document.getElementById('ready-screen');
@@ -257,14 +410,21 @@
         const loadingStatus = document.getElementById('loading-status');
         const startReviewButton = document.getElementById('start-review-button');
         
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const sidebar = document.getElementById('sidebar');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const resumeButton = document.getElementById('resume-button');
+        
         const audioPlayer = document.getElementById('audio-player');
         const currentItemDisplay = document.getElementById('current-item-display');
+        const textDisplay = document.getElementById('text-display');
         const progressBarInner = document.getElementById('progress-bar-inner');
         const sidebarContent = document.getElementById('sidebar-content');
         
         const okButton = document.getElementById('ok-button');
         const issueButton = document.getElementById('issue-button');
         const newChapterButton = document.getElementById('new-chapter-button');
+        const pauseButton = document.getElementById('pause-button');
         const playbackRateSlider = document.getElementById('playback-rate');
 
         const commentModal = document.getElementById('comment-modal');
@@ -281,6 +441,8 @@
         let currentChunkIndex = 1;
         let totalChunksInChapter = 0;
         let isApproved = false; // Flag to control looping
+        let isPaused = false;
+        let isModalOpen = false;
 
         // --- Initialization ---
 
@@ -330,6 +492,7 @@
         function startReviewing() {
             renderSidebar();
             loadRandomUnreviewedChapter();
+            setupEventListeners();
         }
 
         // --- Core Logic: Data Fetching and State ---
@@ -392,8 +555,10 @@
             return 'partial'; // orange
         }
 
-
-        function loadRandomUnreviewedChapter() {
+        async function loadRandomUnreviewedChapter() {
+            // Refresh reviews from database to get latest state
+            await fetchAllReviews();
+            
             const unreviewedChapters = [];
             for (const book of bibleStructure) {
                 for (const chapterNum in book.chapters) {
@@ -421,6 +586,7 @@
 
             if (unreviewedChapters.length === 0) {
                 currentItemDisplay.textContent = "Alles Überprüft! 🎉";
+                textDisplay.textContent = "Herzlichen Glückwunsch! Alle Kapitel wurden überprüft.";
                 return;
             }
 
@@ -429,7 +595,7 @@
             loadChapter(book, chapterNum);
         }
 
-        function loadChapter(book, chapterNum) {
+        async function loadChapter(book, chapterNum) {
             currentChapterData = book;
             currentChapterId = getChapterId(book.book_name, chapterNum);
             totalChunksInChapter = book.chapters[chapterNum];
@@ -446,10 +612,10 @@
             currentChunkIndex = startChunk;
             
             updateActiveSidebarItem();
-            loadChunk(currentChunkIndex);
+            await loadChunk(currentChunkIndex);
         }
         
-        function loadChunk(chunkIndex) {
+        async function loadChunk(chunkIndex) {
             isApproved = false;
             currentChunkIndex = chunkIndex;
             
@@ -457,23 +623,80 @@
             currentItemDisplay.textContent = `${currentChapterData.book_name} ${chapterNum}, Chunk ${currentChunkIndex} / ${totalChunksInChapter}`;
             progressBarInner.style.width = `${(currentChunkIndex - 1) / totalChunksInChapter * 100}%`;
 
+            // Load text content
+            await loadTextContent();
+
             const paddedChunk = String(chunkIndex).padStart(3, '0');
             const audioSrc = `${CONFIG.baseUrl}/${currentChapterId}/${paddedChunk}.wav`;
             
             audioPlayer.src = audioSrc;
             audioPlayer.playbackRate = playbackRateSlider.value;
-            audioPlayer.play().catch(e => console.error("Playback error:", e));
+            
+            // Add a small delay and try to play
+            setTimeout(() => {
+                audioPlayer.play().catch(e => {
+                    console.error("Playback error:", e);
+                    // Try again after a short delay
+                    setTimeout(() => {
+                        audioPlayer.play().catch(e2 => console.error("Second playback attempt failed:", e2));
+                    }, 100);
+                });
+            }, 100);
         }
 
-        function advanceToNext() {
-            if (currentChunkIndex < totalChunksInChapter) {
-                loadChunk(currentChunkIndex + 1);
-            } else {
-                // Chapter finished, load a new one
-                loadRandomUnreviewedChapter();
+        async function loadTextContent() {
+            try {
+                const paddedChunk = String(currentChunkIndex).padStart(3, '0');
+                const textUrl = `${CONFIG.textBaseUrl}/${currentChapterId}/${paddedChunk}.txt`;
+                
+                textDisplay.textContent = 'Text wird geladen...';
+                
+                const response = await fetch(textUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const text = await response.text();
+                textDisplay.textContent = text.trim() || 'Kein Text verfügbar.';
+            } catch (error) {
+                console.error("Fehler beim Laden des Textes:", error);
+                textDisplay.textContent = 'Text konnte nicht geladen werden.';
             }
         }
 
+        async function advanceToNext() {
+            if (currentChunkIndex < totalChunksInChapter) {
+                await loadChunk(currentChunkIndex + 1);
+            } else {
+                // Chapter finished, load a new one
+                await loadRandomUnreviewedChapter();
+            }
+        }
+
+        // --- Pause/Resume functionality ---
+        function togglePause() {
+            if (isPaused) {
+                resumePlayback();
+            } else {
+                pausePlayback();
+            }
+        }
+
+        function pausePlayback() {
+            if (isModalOpen) return; // Don't pause if modal is open
+            
+            isPaused = true;
+            audioPlayer.pause();
+            pauseOverlay.classList.remove('hidden');
+        }
+
+        function resumePlayback() {
+            isPaused = false;
+            pauseOverlay.classList.add('hidden');
+            if (!isModalOpen) {
+                audioPlayer.play().catch(e => console.error("Resume playback error:", e));
+            }
+        }
 
         // --- UI Rendering ---
 
@@ -502,6 +725,8 @@
                     const chapterNum = li.dataset.chapterNum;
                     const book = bibleStructure.find(b => b.book_name === bookName);
                     loadChapter(book, chapterNum);
+                    // Close mobile sidebar
+                    sidebar.classList.remove('mobile-open');
                 });
 
                 // Set initial status color
@@ -516,6 +741,8 @@
             const chapterNum = chapterId.match(/\d+$/)[0];
             const bookName = dot.parentElement.dataset.bookName;
             const bookData = bibleStructure.find(b => b.book_name === bookName);
+            if (!bookData) return;
+            
             const totalChunks = bookData.chapters[chapterNum];
 
             const status = getChapterStatus(chapterId, totalChunks);
@@ -534,52 +761,129 @@
             }
         }
 
-        // --- Event Listeners ---
-        
-        okButton.addEventListener('click', () => {
-            isApproved = true;
-            updateReviewInDb(currentChapterId, currentChunkIndex, 'OK');
-            advanceToNext();
-        });
+        // --- Event Listeners Setup ---
+        function setupEventListeners() {
+            // Basic button events
+            okButton.addEventListener('click', handleOkClick);
+            issueButton.addEventListener('click', handleIssueClick);
+            newChapterButton.addEventListener('click', loadRandomUnreviewedChapter);
+            pauseButton.addEventListener('click', togglePause);
+            
+            playbackRateSlider.addEventListener('input', (e) => {
+                audioPlayer.playbackRate = e.target.value;
+            });
 
-        issueButton.addEventListener('click', () => {
+            // Mobile menu
+            mobileMenuButton.addEventListener('click', () => {
+                sidebar.classList.toggle('mobile-open');
+            });
+
+            // Close mobile menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!sidebar.contains(e.target) && !mobileMenuButton.contains(e.target)) {
+                    sidebar.classList.remove('mobile-open');
+                }
+            });
+
+            // Audio events
+            audioPlayer.addEventListener('ended', () => {
+                if (!isApproved && !isPaused) {
+                    // Loop if not approved
+                    audioPlayer.currentTime = 0;
+                    audioPlayer.play();
+                }
+            });
+
+            // Pause/Resume events
+            resumeButton.addEventListener('click', resumePlayback);
+
+            // Comment Modal events
+            submitCommentButton.addEventListener('click', handleCommentSubmit);
+            cancelCommentButton.addEventListener('click', handleCommentCancel);
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', handleKeydown);
+        }
+
+        async function handleOkClick() {
+            isApproved = true;
+            await updateReviewInDb(currentChapterId, currentChunkIndex, 'OK');
+            await advanceToNext();
+        }
+
+        function handleIssueClick() {
             audioPlayer.pause();
             commentTextarea.value = '';
             commentModal.classList.remove('hidden');
             commentTextarea.focus();
-        });
-        
-        newChapterButton.addEventListener('click', loadRandomUnreviewedChapter);
-        
-        playbackRateSlider.addEventListener('input', (e) => {
-            audioPlayer.playbackRate = e.target.value;
-        });
+            isModalOpen = true;
+        }
 
-        audioPlayer.addEventListener('ended', () => {
-            if (!isApproved) {
-                // Loop if not approved
-                audioPlayer.currentTime = 0;
-                audioPlayer.play();
-            }
-        });
-
-        // Comment Modal events
-        submitCommentButton.addEventListener('click', () => {
+        async function handleCommentSubmit() {
             const comment = commentTextarea.value.trim();
             if (comment) {
                 isApproved = true;
-                updateReviewInDb(currentChapterId, currentChunkIndex, comment);
+                await updateReviewInDb(currentChapterId, currentChunkIndex, comment);
                 commentModal.classList.add('hidden');
-                advanceToNext();
+                isModalOpen = false;
+                await advanceToNext();
             } else {
                 alert('Bitte geben Sie einen Kommentar ein.');
             }
-        });
+        }
 
-        cancelCommentButton.addEventListener('click', () => {
+        function handleCommentCancel() {
             commentModal.classList.add('hidden');
-            audioPlayer.play(); // Resume playback
-        });
+            isModalOpen = false;
+            if (!isPaused) {
+                audioPlayer.play(); // Resume playback
+            }
+        }
+
+        function handleKeydown(e) {
+            // Don't handle shortcuts if typing in textarea or input
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
+                // Handle Ctrl+Enter in comment modal
+                if (e.ctrlKey && e.key === 'Enter' && !commentModal.classList.contains('hidden')) {
+                    e.preventDefault();
+                    handleCommentSubmit();
+                }
+                // Handle Escape in comment modal
+                if (e.key === 'Escape' && !commentModal.classList.contains('hidden')) {
+                    e.preventDefault();
+                    handleCommentCancel();
+                }
+                return;
+            }
+
+            // Global shortcuts
+            switch (e.key) {
+                case 'Enter':
+                    e.preventDefault();
+                    if (!commentModal.classList.contains('hidden')) return;
+                    handleOkClick();
+                    break;
+                    
+                case 'e':
+                case 'E':
+                    e.preventDefault();
+                    if (!commentModal.classList.contains('hidden')) return;
+                    handleIssueClick();
+                    break;
+                    
+                case ' ': // Space bar
+                    e.preventDefault();
+                    togglePause();
+                    break;
+                    
+                case 'Escape':
+                    if (!commentModal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        handleCommentCancel();
+                    }
+                    break;
+            }
+        }
 
         // --- Start the application on page load ---
         document.addEventListener('DOMContentLoaded', initializeApp);
