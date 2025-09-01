@@ -22,7 +22,6 @@
             margin: 0;
             display: flex;
             height: 100vh;
-            overflow: hidden;
         }
         .hidden { display: none !important; }
 
@@ -634,7 +633,7 @@
             currentChunkIndex = chunkIndex;
             
             const chapterNum = currentChapterId.match(/\d+$/)[0];
-            currentItemDisplay.textContent = `${currentChapterData.book_name} ${chapterNum}, Chunk ${currentChunkIndex} / ${totalChunksInChapter}`;
+            currentItemDisplay.textContent = `${currentChapterData.book_name} ${chapterNum} (${currentChunkIndex} / ${totalChunksInChapter})`;
             progressBarInner.style.width = `${(currentChunkIndex - 1) / totalChunksInChapter * 100}%`;
 
             // Load text content
@@ -914,7 +913,7 @@
 
         function handleIssueClick() {
             audioPlayer.pause();
-            commentTextarea.value = '';
+            commentTextarea.value = 'Englische Betonung von Wörtern.';
             commentModal.classList.remove('hidden');
             commentTextarea.focus();
             isModalOpen = true;
