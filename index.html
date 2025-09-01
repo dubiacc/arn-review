@@ -111,25 +111,55 @@
             transition: transform 0.3s ease;
         }
         #sidebar h2 { margin-top: 0; }
-        #sidebar ul { list-style: none; padding: 0; margin: 0; }
-        #sidebar li {
-            padding: 0.5rem;
-            margin-bottom: 0.25rem;
+        
+        /* Styling für die Buch-Container */
+        .book-container {
+            margin-bottom: 1.5rem;
+        }
+        .book-container h3 {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--gray-color);
+        }
+        
+        /* Das Grid für die Kapitel-Nummern */
+        .chapter-grid {
+            display: grid;
+            /* Erstellt so viele Spalten wie möglich mit einer Mindestbreite von 40px */
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 8px;
+        }
+        
+        /* Die einzelne Zelle für eine Kapitelnummer */
+        .chapter-cell {
+            display: flex;
+            flex-direction: column; /* Stapelt Nummer und Punkt vertikal */
+            align-items: center;
+            justify-content: center;
+            background-color: var(--gray-color);
             border-radius: 4px;
             cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            min-height: 45px;
+            transition: background-color 0.2s ease;
+            position: relative;
         }
-        #sidebar li:hover { background-color: #2a2a2a; }
-        #sidebar li.active { background-color: var(--primary-color); color: var(--bg-color); }
+        .chapter-cell:hover {
+            background-color: #4a4a4a;
+        }
+        .chapter-cell.active {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            font-weight: bold;
+        }
+        
+        /* Styling des Status-Punkts */
         .status-dot {
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            border: 1px solid #555;
-            background-color: transparent; /* Default: Not reviewed */
-            flex-shrink: 0;
+            margin-top: 4px; /* Abstand zwischen Nummer und Punkt */
+            /* Standardmäßig unsichtbar (keine Hintergrundfarbe) */
         }
         .status-dot.status-partial { background-color: var(--orange-color); }
         .status-dot.status-ok { background-color: var(--green-color); }
@@ -729,64 +759,106 @@
 
         // --- UI Rendering ---
 
+        /**
+         * Erstellt die komplette Sidebar-Navigation mit Büchern und Kapitel-Grids.
+         * Jedes Kapitel wird als klickbare "Kalenderzelle" dargestellt.
+         */
         function renderSidebar() {
-            let html = '<ul>';
+            let html = '';
             for (const book of bibleStructure) {
-                html += `<li><strong>${book.book_name}</strong></li>`;
-                 const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
+                // Ein Container für jedes Buch mit Titel
+                html += `<div class="book-container"><h3>${book.book_name}</h3><div class="chapter-grid">`;
+
+                const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
                 for (const chapterNum of sortedChapters) {
+                    // Wichtig: chapterId wird nun direkt aus dem directory_name gebildet
                     const chapterId = book.directory_name + chapterNum;
+                    
+                    // Die "Kalenderzelle" für jedes Kapitel
                     html += `
-                        <li data-chapter-id="${chapterId}" data-book-name="${book.book_name}" data-chapter-num="${chapterNum}">
-                            <span>&nbsp;&nbsp;Kapitel ${chapterNum}</span>
+                        <div class="chapter-cell" id="cell-${chapterId}" data-chapter-id="${chapterId}" data-book-name="${book.book_name}" data-chapter-num="${chapterNum}">
+                            <span class="chapter-number">${chapterNum}</span>
                             <span class="status-dot" id="status-${chapterId}"></span>
-                        </li>
+                        </div>
                     `;
                 }
+                html += `</div></div>`; // Grid und Container schließen
             }
-            html += '</ul>';
             sidebarContent.innerHTML = html;
             
-            // Add event listeners after rendering
-            document.querySelectorAll('#sidebar li[data-chapter-id]').forEach(li => {
-                 li.addEventListener('click', () => {
-                    const bookName = li.dataset.bookName;
-                    const chapterNum = li.dataset.chapterNum;
+            // Event-Listener für die neuen klickbaren Zellen hinzufügen
+            document.querySelectorAll('.chapter-cell').forEach(cell => {
+                 cell.addEventListener('click', () => {
+                    const bookName = cell.dataset.bookName;
+                    const chapterNum = cell.dataset.chapterNum;
                     const book = bibleStructure.find(b => b.book_name === bookName);
-                    loadChapter(book, chapterNum);
-                    // Close mobile sidebar
+                    if (book) {
+                        loadChapter(book, chapterNum);
+                    }
+                    // Bei Klick auf Mobilgeräten die Sidebar schließen
                     sidebar.classList.remove('mobile-open');
                 });
-
-                // Set initial status color
-                updateSidebarStatus(li.dataset.chapterId);
             });
+
+            // Nach dem Rendern der gesamten Struktur, den Status für ALLE Kapitel initialisieren.
+            // Dies stellt sicher, dass alle Punkte korrekt angezeigt werden.
+            for (const book of bibleStructure) {
+                const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
+                for (const chapterNum of sortedChapters) {
+                    const chapterId = book.directory_name + chapterNum;
+                    updateSidebarStatus(chapterId);
+                }
+            }
         }
         
+        /**
+         * Aktualisiert die Farbe des Status-Punkts unter einer Kapitelnummer.
+         * Der Punkt ist standardmäßig unsichtbar und erhält nur eine Farbe, wenn
+         * das Kapitel einen Status wie 'partial', 'ok' oder 'issue' hat.
+         * @param {string} chapterId Die ID des Kapitels (z.B. "Gen1").
+         */
         function updateSidebarStatus(chapterId) {
             const dot = document.getElementById(`status-${chapterId}`);
             if (!dot) return;
             
-            const chapterNum = chapterId.match(/\d+$/)[0];
-            const bookName = dot.parentElement.dataset.bookName;
+            // Finde die notwendigen Daten, um den Gesamtfortschritt des Kapitels zu kennen
+            const chapterCell = dot.closest('.chapter-cell');
+            if (!chapterCell) return;
+            
+            const chapterNum = chapterCell.dataset.chapterNum;
+            const bookName = chapterCell.dataset.bookName;
             const bookData = bibleStructure.find(b => b.book_name === bookName);
-            if (!bookData) return;
+            
+            if (!bookData || !bookData.chapters[chapterNum]) return;
             
             const totalChunks = bookData.chapters[chapterNum];
-
             const status = getChapterStatus(chapterId, totalChunks);
-            dot.className = 'status-dot'; // Reset
+
+            // Setzt die Klassen des Punkts zurück. Dies ist der entscheidende Schritt,
+            // um ihn bei 'pending' (kein Review) unsichtbar zu machen.
+            dot.className = 'status-dot'; 
+            
+            // Füge die korrekte Status-Klasse hinzu, die ihm eine Farbe gibt.
             if (status === 'ok') dot.classList.add('status-ok');
-            else if (status === 'partial') dot.classList.add('status-partial');
             else if (status === 'issue') dot.classList.add('status-issue');
+            else if (status === 'partial') dot.classList.add('status-partial');
         }
 
+        /**
+         * Hebt die aktuell ausgewählte Kapitel-Zelle in der Sidebar hervor
+         * und scrollt sie in den sichtbaren Bereich.
+         */
         function updateActiveSidebarItem() {
-            document.querySelectorAll('#sidebar li.active').forEach(li => li.classList.remove('active'));
-            const activeLi = document.querySelector(`#sidebar li[data-chapter-id="${currentChapterId}"]`);
-            if (activeLi) {
-                activeLi.classList.add('active');
-                activeLi.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Zuerst alle eventuell aktiven Markierungen entfernen
+            document.querySelectorAll('.chapter-cell.active').forEach(cell => cell.classList.remove('active'));
+            
+            // Die neue Zelle basierend auf der currentChapterId finden
+            const activeCell = document.getElementById(`cell-${currentChapterId}`);
+            if (activeCell) {
+                activeCell.classList.add('active');
+                
+                // Scrollt die Zelle in die Mitte der Sidebar für bessere Sichtbarkeit
+                activeCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
 
