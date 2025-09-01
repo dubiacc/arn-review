@@ -85,8 +85,12 @@
             padding: 1rem 1.5rem;
             cursor: pointer;
             background-color: #2a2a2a;
+            border-left: 5px solid transparent; /* Default border */
+            transition: background-color 0.2s;
         }
         .book-header:hover { background-color: #333; }
+        .book-header.status-ok { border-left-color: var(--green-color); }
+        .book-header.status-issue { border-left-color: var(--red-color); }
         .book-header h2 { margin: 0; font-size: 1.2rem; }
         .book-stats { display: flex; gap: 1rem; font-size: 0.9rem; }
         
@@ -112,9 +116,11 @@
             min-height: 45px;
             transition: background-color 0.2s ease;
             font-weight: bold;
+            border: 1px solid transparent;
         }
         .chapter-cell:hover { background-color: #4a4a4a; }
-        .chapter-cell.all-ok { background-color: #015249; color: var(--green-color); } /* Dark green */
+        .chapter-cell.status-ok { background-color: #015249; color: var(--green-color); } /* Dark green */
+        .chapter-cell.status-issue { background-color: #4d252d; color: var(--red-color); border-color: var(--red-color); } /* Dark red */
         .chapter-cell.active {
             background-color: var(--primary-color);
             color: var(--bg-color);
@@ -134,6 +140,7 @@
             border-radius: 4px;
             margin-bottom: 0.5rem;
             font-family: var(--monospace-font);
+            transition: opacity 0.3s ease;
         }
         .chunk-comment {
             flex-grow: 1;
@@ -207,10 +214,8 @@
 
         async function initializeApp() {
             try {
-                // 1. Initialize Turso Client
                 tursoClient = createClient({ url: CONFIG.tursoUrl, authToken: CONFIG.tursoToken });
 
-                // 2. Fetch all necessary data
                 loadingStatus.textContent = 'Lade Bibel-Struktur und Reviews...';
                 const [structureResponse, reviewsResult] = await Promise.all([
                     fetch(CONFIG.jsonUrl),
@@ -220,17 +225,13 @@
                 if (!structureResponse.ok) throw new Error('Bibel-Struktur konnte nicht geladen werden.');
                 bibleStructure = await structureResponse.json();
                 
-                // Process reviews into a more accessible format
                 for (const row of reviewsResult.rows) {
-                    if (!allReviews[row.chapter_id]) {
-                        allReviews[row.chapter_id] = {};
-                    }
+                    if (!allReviews[row.chapter_id]) allReviews[row.chapter_id] = {};
                     allReviews[row.chapter_id][row.chunk_index] = row.status;
                 }
 
-                // 3. Process data and render the UI
                 loadingStatus.textContent = 'Verarbeite Daten und erstelle Ansicht...';
-                processAndRender();
+                renderUI();
 
                 loadingStatus.classList.add('hidden');
                 globalStatsEl.classList.remove('hidden');
@@ -246,11 +247,9 @@
 
             for (const book of bibleStructure) {
                 let bookOk = 0, bookIssue = 0, bookPending = 0;
-                let totalChunksInBook = 0;
 
                 for (const chapterNum in book.chapters) {
                     const totalChunksInChapter = book.chapters[chapterNum];
-                    totalChunksInBook += totalChunksInChapter;
                     const chapterId = book.directory_name + chapterNum;
                     const reviewsForChapter = allReviews[chapterId] || {};
                     
@@ -261,28 +260,25 @@
                     });
                     
                     const reviewedCount = chapterOk + chapterIssue;
-                    const chapterPending = totalChunksInChapter - reviewedCount;
-
                     bookOk += chapterOk;
                     bookIssue += chapterIssue;
-                    bookPending += chapterPending;
+                    bookPending += (totalChunksInChapter - reviewedCount);
                 }
 
-                bookStats[book.book_name] = { ok: bookOk, issue: bookIssue, pending: bookPending, total: totalChunksInBook };
+                bookStats[book.book_name] = { ok: bookOk, issue: bookIssue, pending: bookPending };
                 totalOk += bookOk;
                 totalIssue += bookIssue;
                 totalPending += bookPending;
             }
 
-            // Update global stats display
             document.getElementById('total-ok').textContent = totalOk;
             document.getElementById('total-issue').textContent = totalIssue;
             document.getElementById('total-pending').textContent = totalPending;
         }
         
-        function processAndRender() {
+        function renderUI() {
             calculateStats();
-            bookListEl.innerHTML = ''; // Clear previous content
+            bookListEl.innerHTML = '';
 
             for (const book of bibleStructure) {
                 const stats = bookStats[book.book_name];
@@ -303,8 +299,14 @@
                         <div class="chunk-issues-container"></div>
                     </div>
                 `;
-                bookListEl.appendChild(bookSection);
                 
+                const bookHeader = bookSection.querySelector('.book-header');
+                if (stats.issue > 0) {
+                    bookHeader.classList.add('status-issue');
+                } else if (stats.pending === 0 && stats.issue === 0) {
+                    bookHeader.classList.add('status-ok');
+                }
+
                 const chapterGrid = bookSection.querySelector('.chapter-grid');
                 const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
 
@@ -315,16 +317,19 @@
                     cell.textContent = chapterNum;
                     cell.dataset.chapterId = chapterId;
                     
-                    // Check if all chunks in this chapter are OK
                     const totalChunks = book.chapters[chapterNum];
                     const reviewsForChapter = allReviews[chapterId] || {};
-                    const okCount = Object.values(reviewsForChapter).filter(s => s === 'OK').length;
-                    if (okCount === totalChunks) {
-                        cell.classList.add('all-ok');
-                    }
+                    const reviewCount = Object.keys(reviewsForChapter).length;
+                    const hasIssue = Object.values(reviewsForChapter).some(s => s !== 'OK');
 
+                    if (hasIssue) {
+                        cell.classList.add('status-issue');
+                    } else if (reviewCount > 0 && reviewCount >= totalChunks) {
+                        cell.classList.add('status-ok');
+                    }
                     chapterGrid.appendChild(cell);
                 }
+                bookListEl.appendChild(bookSection);
             }
             setupEventListeners();
         }
@@ -335,10 +340,8 @@
                 const chapterCell = e.target.closest('.chapter-cell');
 
                 if (header) {
-                    const content = header.nextElementSibling;
-                    content.classList.toggle('hidden');
+                    header.nextElementSibling.classList.toggle('hidden');
                 }
-
                 if (chapterCell) {
                     handleChapterClick(chapterCell);
                 }
@@ -346,32 +349,28 @@
         }
 
         function handleChapterClick(cell) {
-            // Deactivate any other active chapter cell within the same book
-            const parentGrid = cell.closest('.chapter-grid');
-            parentGrid.querySelectorAll('.chapter-cell.active').forEach(c => c.classList.remove('active'));
-            
-            // Activate the clicked one
+            cell.closest('.chapter-grid').querySelectorAll('.chapter-cell.active').forEach(c => c.classList.remove('active'));
             cell.classList.add('active');
 
             const chapterId = cell.dataset.chapterId;
             const issuesContainer = cell.closest('.book-content').querySelector('.chunk-issues-container');
-            issuesContainer.innerHTML = 'Lade problematische Chunks...';
-
-            const issues = [];
             const reviewsForChapter = allReviews[chapterId] || {};
-            for (const chunkIndex in reviewsForChapter) {
-                const status = reviewsForChapter[chunkIndex];
-                if (status !== 'OK') {
-                    issues.push({ chunkIndex, status });
-                }
-            }
+            const reviewCount = Object.keys(reviewsForChapter).length;
 
-            if (issues.length === 0) {
-                issuesContainer.innerHTML = '<p>🎉 Keine Probleme in diesem Kapitel gefunden.</p>';
+            if (reviewCount === 0) {
+                issuesContainer.innerHTML = '<p>Dieses Kapitel wurde noch nicht überprüft.</p>';
                 return;
             }
             
-            issues.sort((a, b) => parseInt(a.chunkIndex) - parseInt(b.chunkIndex));
+            const issues = Object.entries(reviewsForChapter)
+                .filter(([_, status]) => status !== 'OK')
+                .map(([chunkIndex, status]) => ({ chunkIndex, status }))
+                .sort((a, b) => parseInt(a.chunkIndex) - parseInt(b.chunkIndex));
+
+            if (issues.length === 0) {
+                issuesContainer.innerHTML = '<p>🎉 Alle überprüften Chunks in diesem Kapitel sind OK.</p>';
+                return;
+            }
             
             issuesContainer.innerHTML = '';
             for (const issue of issues) {
@@ -379,9 +378,6 @@
                 row.className = 'chunk-row';
                 row.dataset.chapterId = chapterId;
                 row.dataset.chunkIndex = issue.chunkIndex;
-                
-                const paddedChunk = String(issue.chunkIndex).padStart(3, '0');
-                
                 row.innerHTML = `
                     <div class="chunk-comment" data-chunk="${issue.chunkIndex}">${issue.status}</div>
                     <div class="chunk-actions">
@@ -392,7 +388,6 @@
                 `;
                 issuesContainer.appendChild(row);
                 
-                // Add specific listeners for the new buttons
                 row.querySelector('.get-prompt-btn').addEventListener('click', handleGetPrompt);
                 row.querySelector('.copy-rm-btn').addEventListener('click', handleCopyRm);
                 row.querySelector('.set-ok-btn').addEventListener('click', handleSetOk);
@@ -430,7 +425,7 @@
             const row = button.closest('.chunk-row');
             const { chapterId, chunkIndex } = row.dataset;
             const paddedChunk = String(chunkIndex).padStart(3, '0');
-            const command = `rm /wav/${chapterId}/${paddedChunk}.wav`;
+            const command = `rm wav/${chapterId}/${paddedChunk}.wav`;
             
             await navigator.clipboard.writeText(command);
             button.textContent = 'Kopiert!';
@@ -442,9 +437,7 @@
             const row = button.closest('.chunk-row');
             const { chapterId, chunkIndex } = row.dataset;
 
-            if (!confirm(`Soll Chunk #${chunkIndex} von ${chapterId} wirklich auf "OK" gesetzt werden?`)) {
-                return;
-            }
+            if (!confirm(`Soll Chunk #${chunkIndex} von ${chapterId} wirklich auf "OK" gesetzt werden?`)) return;
 
             try {
                 button.textContent = 'Speichere...';
@@ -455,17 +448,13 @@
                     args: [chapterId, parseInt(chunkIndex)]
                 });
 
-                // Update local state
-                if (allReviews[chapterId]) {
-                    allReviews[chapterId][chunkIndex] = 'OK';
-                }
+                if (allReviews[chapterId]) allReviews[chapterId][chunkIndex] = 'OK';
 
-                // Visually remove the row
                 row.style.opacity = '0';
-                setTimeout(() => { 
+                setTimeout(() => {
                     row.remove();
-                    // Re-calculate and re-render to update stats
-                    processAndRender();
+                    // Re-render the whole UI to update all stats and highlights
+                    renderUI(); 
                 }, 300);
 
             } catch (error) {
@@ -476,9 +465,7 @@
             }
         }
         
-        // --- Start the application ---
         document.addEventListener('DOMContentLoaded', initializeApp);
-
     </script>
 </body>
 </html>
