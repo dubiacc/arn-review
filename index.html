@@ -648,12 +648,57 @@
             }
         }
 
+        async function loadNextLogicalChapter() {
+            // Sicherstellen, dass wir wissen, wo wir sind.
+            if (!currentChapterData || !currentChapterId) {
+                console.error("Aktueller Status unbekannt, lade zufälliges Kapitel als Fallback.");
+                await loadRandomUnreviewedChapter();
+                return;
+            }
+
+            // 1. Finde den Index des aktuellen Buches in der Gesamtstruktur
+            const currentBookIndex = bibleStructure.findIndex(book => book.book_name === currentChapterData.book_name);
+            const currentBook = bibleStructure[currentBookIndex];
+
+            // 2. Finde die sortierte Liste der Kapitelnummern für das aktuelle Buch
+            const sortedChaptersInBook = Object.keys(currentBook.chapters).sort((a, b) => parseInt(a) - parseInt(b));
+            const currentChapterNum = currentChapterId.match(/\d+$/)[0]; // Extrahiert z.B. "50" aus "Gen50"
+            const currentChapterIndexInBook = sortedChaptersInBook.indexOf(currentChapterNum);
+
+            // 3. Fall A: Es gibt ein weiteres Kapitel im selben Buch
+            if (currentChapterIndexInBook < sortedChaptersInBook.length - 1) {
+                const nextChapterNum = sortedChaptersInBook[currentChapterIndexInBook + 1];
+                console.log(`Kapitel beendet. Lade nächstes Kapitel: ${currentBook.book_name} ${nextChapterNum}`);
+                await loadChapter(currentBook, nextChapterNum);
+                return; 
+            }
+
+            // 4. Fall B: Es war das letzte Kapitel des Buches -> gehe zum nächsten Buch
+            if (currentBookIndex < bibleStructure.length - 1) {
+                const nextBook = bibleStructure[currentBookIndex + 1];
+                // Nimm das erste Kapitel des neuen Buches
+                const firstChapterOfNextBook = Object.keys(nextBook.chapters).sort((a, b) => parseInt(a) - parseInt(b))[0];
+                console.log(`Buch beendet. Lade erstes Kapitel des nächsten Buches: ${nextBook.book_name} ${firstChapterOfNextBook}`);
+                await loadChapter(nextBook, firstChapterOfNextBook);
+                return;
+            }
+
+            // 5. Fall C: Es war das letzte Kapitel des letzten Buches in der Bibel
+            console.log("Herzlichen Glückwunsch! Das gesamte Review ist abgeschlossen!");
+            currentItemDisplay.textContent = "Alles Überprüft! 🎉";
+            textDisplay.textContent = "Fantastische Arbeit! Alle Kapitel wurden erfolgreich überprüft.";
+            // Optional: Steuerelemente deaktivieren
+            okButton.disabled = true;
+            issueButton.disabled = true;
+            newChapterButton.disabled = true;
+        }
+        
         async function advanceToNext() {
             if (currentChunkIndex < totalChunksInChapter) {
                 await loadChunk(currentChunkIndex + 1);
             } else {
                 // Chapter finished, load a new one
-                await loadRandomUnreviewedChapter();
+                await loadNextLogicalChapter();
             }
         }
 
