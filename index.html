@@ -128,7 +128,7 @@
             height: 12px;
             border-radius: 50%;
             border: 1px solid #555;
-            background-color: white; /* Default: Not reviewed */
+            background-color: transparent; /* Default: Not reviewed */
             flex-shrink: 0;
         }
         .status-dot.status-partial { background-color: var(--orange-color); }
@@ -748,8 +748,8 @@
             const status = getChapterStatus(chapterId, totalChunks);
             dot.className = 'status-dot'; // Reset
             if (status === 'ok') dot.classList.add('status-ok');
-            else if (status === 'issue') dot.classList.add('status-issue');
             else if (status === 'partial') dot.classList.add('status-partial');
+            else if (status === 'issue') dot.classList.add('status-issue');
         }
 
         function updateActiveSidebarItem() {
