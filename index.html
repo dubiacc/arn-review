@@ -2,7 +2,8 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 7. Viewport-Scaling für korrekte mobile Darstellung -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Bibel-Audio Review-Tool</title>
     <style>
         :root {
@@ -48,254 +49,186 @@
 
         /* --- Ready Screen --- */
         #ready-screen {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            text-align: center;
+            display: flex; justify-content: center; align-items: center;
+            width: 100%; text-align: center;
         }
         #ready-screen button {
-            font-size: 2rem;
-            padding: 1rem 2rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.1s ease;
-            background-color: var(--primary-color);
-            color: #fff;
+            font-size: 2rem; padding: 1rem 2rem; border: none;
+            border-radius: 8px; cursor: pointer; font-weight: bold;
+            transition: transform 0.1s ease; background-color: var(--primary-color); color: #fff;
         }
         #ready-screen button:disabled { background-color: #ccc; cursor: not-allowed; }
         #ready-screen button:active:not(:disabled) { transform: scale(0.98); }
 
-
         /* --- Main App Layout --- */
         #main-app {
-            display: flex;
-            width: 100%;
-            height: 100%;
+            display: flex; width: 100%; height: 100%;
         }
         #sidebar {
-            width: 320px;
-            min-width: 280px;
-            background-color: var(--surface-color);
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid var(--gray-color);
-            transition: transform 0.3s ease;
+            width: 320px; min-width: 280px; background-color: var(--surface-color);
+            display: flex; flex-direction: column; border-right: 1px solid var(--gray-color);
+            transition: min-width 0.3s ease, width 0.3s ease, transform 0.3s ease;
+            flex-shrink: 0;
         }
-        #sidebar-header {
-            padding: 1rem;
-            border-bottom: 1px solid var(--gray-color);
+        /* 2. Style for collapsed sidebar */
+        #main-app.sidebar-collapsed #sidebar {
+            width: 0; min-width: 0; border-right: none; transform: translateX(-100%);
         }
+        
+        #sidebar-header { padding: 1rem; border-bottom: 1px solid var(--gray-color); }
         #sidebar-header h2 { margin: 0 0 1rem 0; }
         #new-chapter-button {
-            width: 100%;
-            font-size: 1rem;
-            padding: 0.75rem 1rem;
-            background-color: var(--primary-color);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
+            width: 100%; font-size: 1rem; padding: 0.75rem 1rem; background-color: var(--primary-color);
+            color: #fff; border: none; border-radius: 8px; cursor: pointer;
         }
-        #sidebar-content {
-            padding: 1rem;
-            overflow-y: auto;
-            flex-grow: 1;
-        }
+        #sidebar-content { padding: 1rem; overflow-y: auto; flex-grow: 1; }
         .book-container { margin-bottom: 1.5rem; }
         .book-container h3 { margin-bottom: 0.75rem; font-size: 1.1rem; }
         .chapter-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
-            gap: 8px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); gap: 8px;
         }
         .chapter-cell {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--gray-color);
-            border-radius: 8px;
-            cursor: pointer;
-            min-height: 50px;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-            position: relative;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background-color: var(--gray-color); border-radius: 8px; cursor: pointer;
+            min-height: 50px; transition: background-color 0.2s ease, transform 0.1s ease; position: relative;
         }
         .chapter-cell:hover:not(.disabled-chapter) { background-color: #d1d1d6; }
         .chapter-cell:active:not(.disabled-chapter) { transform: scale(0.95); }
-        .chapter-cell.active {
-            background-color: var(--primary-color);
-            color: #fff;
-            font-weight: bold;
-        }
+        .chapter-cell.active { background-color: var(--primary-color); color: #fff; font-weight: bold; }
         .chapter-cell.disabled-chapter {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background-color: var(--gray-color);
-            position: relative;
+            opacity: 0.5; cursor: not-allowed; background-color: var(--gray-color); position: relative;
         }
-        .chapter-cell.disabled-chapter::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 110%;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #333;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s, visibility 0.2s;
-            z-index: 10;
-        }
-        .chapter-cell.disabled-chapter:hover::after { opacity: 1; visibility: visible; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; }
         .status-dot.status-partial { background-color: var(--orange-color); }
         .status-dot.status-ok { background-color: var(--green-color); }
         .status-dot.status-issue { background-color: var(--red-color); }
 
+        /* --- Review Panel & Toggle --- */
+        #review-panel-wrapper { flex-grow: 1; display: flex; position: relative; min-width: 0; }
+        /* 2. Sidebar Toggle Button Style */
+        #sidebar-toggle {
+            position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+            background-color: var(--surface-color); border: 1px solid var(--gray-color);
+            border-left: none; width: 24px; height: 60px; z-index: 50;
+            border-radius: 0 8px 8px 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: left 0.3s ease;
+        }
+        #sidebar-toggle svg { transition: transform 0.3s ease; }
+
         #review-panel {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 2rem;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
-            box-sizing: border-box;
+            flex-grow: 1; display: flex; flex-direction: column; padding: 2rem;
+            max-width: 900px; margin: 0 auto; width: 100%; box-sizing: border-box;
         }
-        #info-panel { text-align: center; }
+        #info-panel { text-align: center; margin-bottom: 0.5rem; }
         #current-item-display { font-size: 2rem; margin: 0; font-weight: 500; }
-        
-        /* New Audio Player Controls */
+
+        /* 4. New Chunk Progress Dots */
+        #chunk-progress-dots {
+            display: flex; justify-content: center; gap: 8px; margin-top: 1rem; flex-wrap: wrap;
+        }
+        .progress-dot {
+            width: 16px; height: 16px; border-radius: 50%;
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .progress-dot:hover { transform: scale(1.2); }
+        .progress-dot.pending { background-color: var(--gray-color); }
+        .progress-dot.ok { background-color: var(--green-color); }
+        .progress-dot.issue { background-color: var(--red-color); }
+        .progress-dot.active { border: 3px solid var(--primary-color); box-sizing: border-box; transform: scale(1.2); }
+
+        /* Audio Player */
         #audio-player-ui {
-            background-color: var(--surface-color);
-            padding: 1rem;
-            border-radius: 12px;
-            margin: 1.5rem 0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            background-color: var(--surface-color); padding: 1rem; border-radius: 12px;
+            margin: 1.5rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
-        .player-controls-top {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
+        .player-controls-top { display: flex; justify-content: center; align-items: center; gap: 1rem; }
         #play-pause-button {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            font-size: 2rem;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: var(--primary-color); color: white; border: none;
+            width: 60px; height: 60px; border-radius: 50%; font-size: 2rem;
+            cursor: pointer; display: flex; justify-content: center; align-items: center;
         }
         #time-display { font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--text-secondary-color); width: 100px; text-align: center; }
-        
-        .progress-bar-container {
-            width: 100%;
-            height: 8px;
-            background-color: var(--gray-color);
-            border-radius: 4px;
-            cursor: pointer;
-            overflow: hidden;
-        }
+        .progress-bar-container { width: 100%; height: 8px; background-color: var(--gray-color); border-radius: 4px; cursor: pointer; overflow: hidden; }
         #progress-bar-inner { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.1s linear; }
 
-        .player-controls-bottom {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 1rem;
-        }
+        .player-controls-bottom { display: flex; justify-content: center; align-items: center; margin-top: 1rem; }
         #speed-controls button {
-            background: none;
-            border: 1px solid var(--gray-color);
-            color: var(--text-secondary-color);
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s, color 0.2s;
+            background: none; border: 1px solid var(--gray-color); color: var(--text-secondary-color);
+            padding: 0.5rem 0.8rem; cursor: pointer; transition: background-color 0.2s, color 0.2s;
         }
         #speed-controls button:first-child { border-radius: 8px 0 0 8px; }
         #speed-controls button:last-child { border-radius: 0 8px 8px 0; }
         #speed-controls button.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
-        #share-button { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--text-secondary-color); display: flex; align-items: center; gap: 0.5rem; }
-        
+
+        /* Text Display */
         #text-display {
             background-color: var(--surface-color);
-            padding: 2rem;
+            padding: 1rem;
             border-radius: 12px;
-            font-size: 1.5rem;
-            line-height: 2;
-            height: 40vh;
+            font-size: 1.2em;
+            line-height: 1.2;
+            text-align: justify;
             overflow-y: auto;
-            text-align: left;
             font-family: var(--font-serif);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         }
         #text-display .word { cursor: pointer; transition: background-color 0.2s; border-radius: 4px; padding: 0 2px; }
         #text-display .word:hover { background-color: var(--gray-color); }
         #text-display .highlighted-word { background-color: #feefc3; }
 
+        /* Controls */
         #controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            padding: 2rem 0;
-            flex-shrink: 0;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
+            padding: 2rem 0; flex-shrink: 0;
         }
         #controls button {
-            height: 120px;
-            font-size: 1.8rem;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.1s ease;
-            position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            height: 120px; font-size: 1.8rem; border: none; border-radius: 12px;
+            cursor: pointer; font-weight: bold; transition: transform 0.1s ease, background-color 0.2s;
+            position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-        #controls button:active { transform: scale(0.98); }
+        #controls button:disabled { background-color: #ccc !important; cursor: not-allowed; box-shadow: none; }
+        #controls button:active:not(:disabled) { transform: scale(0.98); }
         #ok-button { background-color: var(--green-color); color: #fff; }
         #issue-button { background-color: var(--red-color); color: #fff; }
+        #submit-chapter-button { background-color: var(--primary-color); color: #fff; grid-column: 1 / -1; }
         .hotkey { position: absolute; bottom: 0.5rem; right: 0.5rem; font-size: 0.8rem; opacity: 0.8; }
         
-        #comment-modal {
+        /* Modals (Comment & Guide) */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.6);
             display: flex; justify-content: center; align-items: center; z-index: 100;
         }
-        #comment-modal-content {
+        .modal-content {
             background-color: var(--surface-color); padding: 2rem; border-radius: 12px;
-            width: 90%; max-width: 500px;
+            width: 90%; max-width: 500px; box-shadow: 0 5px 20px rgba(0,0,0,0.2);
         }
         #comment-textarea {
             width: 100%; height: 150px; margin-bottom: 1rem; background-color: var(--bg-color);
-            color: var(--text-color); border: 1px solid var(--gray-color); padding: 0.5rem; box-sizing: border-box;
+            color: var(--text-color); border: 1px solid var(--gray-color); padding: 0.5rem; box-sizing: border-box; border-radius: 8px;
         }
-        #comment-modal-content button { font-size: 1rem; padding: 0.8rem 1.5rem; margin-right: 1rem; border: none; border-radius: 8px; cursor: pointer; }
-        #comment-modal-content .hotkey-info { font-size: 0.8rem; opacity: 0.8; margin-top: 0.5rem; }
+        .modal-content button { font-size: 1rem; padding: 0.8rem 1.5rem; margin-right: 1rem; border: none; border-radius: 8px; cursor: pointer; }
+        .modal-content .hotkey-info { font-size: 0.8rem; opacity: 0.8; margin-top: 0.5rem; }
+        
+        #guide-modal h2 { margin-top: 0; }
+        #guide-modal ul { padding-left: 20px; }
+        #guide-modal li { margin-bottom: 1rem; }
+        #guide-modal code { background-color: var(--gray-color); padding: 2px 5px; border-radius: 4px; }
 
         /* --- Mobile Styles --- */
         @media (max-width: 900px) {
             #mobile-menu-button { display: block; }
+            #sidebar-toggle { display: none; } /* Hide desktop toggle on mobile */
+            #main-app.sidebar-collapsed #sidebar { transform: none; } /* Reset transform for mobile view */
             #main-app { flex-direction: column; }
             #sidebar {
                 position: fixed; top: 0; left: 0; height: 100vh;
                 z-index: 100; transform: translateX(-100%); width: 80%; max-width: 320px;
+                border-right: 1px solid var(--gray-color); /* Ensure border is visible */
             }
             #sidebar.mobile-open { transform: translateX(0); }
-            #review-panel { padding: 1rem; padding-top: 5rem; height: 100vh; box-sizing: border-box; }
+            #review-panel-wrapper { padding-top: 4rem; }
+            #review-panel { padding: 1rem; height: calc(100vh - 4rem); }
             #controls { grid-template-columns: 1fr; gap: 1rem; padding: 1rem 0; }
             #controls button { height: 80px; font-size: 1.5rem; }
             #current-item-display { font-size: 1.5rem; }
@@ -305,10 +238,8 @@
 </head>
 <body>
 
-    <!-- ======== MOBILE MENU BUTTON ======== -->
-    <button id="mobile-menu-button">☰ Kapitel wählen</button>
+    <button id="mobile-menu-button" aria-label="Kapitelmenü öffnen">☰</button>
 
-    <!-- ======== READY SCREEN ======== -->
     <div id="ready-screen">
         <div>
             <h1>Bereit für das Review?</h1>
@@ -317,7 +248,6 @@
         </div>
     </div>
 
-    <!-- ======== MAIN APPLICATION ======== -->
     <div id="main-app" class="hidden">
         <aside id="sidebar">
             <div id="sidebar-header">
@@ -327,56 +257,81 @@
             <div id="sidebar-content"></div>
         </aside>
 
-        <main id="review-panel">
-            <div id="info-panel">
-                <h2 id="current-item-display">Lade Kapitel...</h2>
-            </div>
+        <div id="review-panel-wrapper">
+             <!-- 2. Sidebar Toggle Button -->
+            <button id="sidebar-toggle" title="Sidebar umschalten" aria-label="Sidebar umschalten">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 13L5 8L10 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <main id="review-panel">
+                <div id="info-panel">
+                    <h2 id="current-item-display">Lade Kapitel...</h2>
+                    <!-- 4. Container for progress dots -->
+                    <div id="chunk-progress-dots"></div>
+                </div>
 
-            <!-- New Audio Player UI -->
-            <div id="audio-player-ui">
-                 <div class="player-controls-top">
-                    <div id="time-display">00:00 / 00:00</div>
-                    <button id="play-pause-button">▶</button>
-                    <div class="progress-bar-container">
-                       <div id="progress-bar-inner"></div>
-                    </div>
-                 </div>
-                 <div class="player-controls-bottom">
-                    <div id="speed-controls">
-                        <button data-speed="0.5">0.5x</button>
-                        <button data-speed="1" class="active">1x</button>
-                        <button data-speed="1.5">1.5x</button>
-                        <button data-speed="2">2x</button>
-                    </div>
-                    <button id="share-button">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
-                        Share
+                <div id="audio-player-ui">
+                     <div class="player-controls-top">
+                        <button id="play-pause-button" aria-label="Abspielen/Pause">▶</button>
+                        <div id="time-display">00:00 / 00:00</div>
+                        <div class="progress-bar-container" tabindex="0" role="slider" aria-label="Audio-Fortschritt">
+                           <div id="progress-bar-inner"></div>
+                        </div>
+                     </div>
+                     <div class="player-controls-bottom">
+                        <!-- 5. More speed controls, no share button -->
+                        <div id="speed-controls">
+                            <button data-speed="0.75">0.75x</button>
+                            <button data-speed="1" class="active">1x</button>
+                            <button data-speed="1.25">1.25x</button>
+                            <button data-speed="1.5">1.5x</button>
+                            <button data-speed="2">2x</button>
+                            <button data-speed="3">3x</button>
+                            <button data-speed="4">4x</button>
+                        </div>
+                     </div>
+                </div>
+                
+                <div id="text-display" tabindex="0">Text wird geladen...</div>
+                <audio id="audio-player" style="display:none;"></audio>
+
+                <div id="controls">
+                    <button id="issue-button">
+                        Problem melden <span class="hotkey">E</span>
                     </button>
-                 </div>
-            </div>
-            
-            <div id="text-display">Text wird geladen...</div>
-            <audio id="audio-player" style="display:none;"></audio>
-
-            <div id="controls">
-                <button id="issue-button">
-                    Problem melden <span class="hotkey">E</span>
-                </button>
-                <button id="ok-button">
-                    OK <span class="hotkey">Enter</span>
-                </button>
-            </div>
-        </main>
+                    <button id="ok-button">
+                        OK <span class="hotkey">Enter</span>
+                    </button>
+                    <!-- 3. New submit chapter button -->
+                    <button id="submit-chapter-button" class="hidden">
+                        Kapitel abschließen & senden
+                    </button>
+                </div>
+            </main>
+        </div>
     </div>
 
-    <!-- ======== COMMENT MODAL ======== -->
-    <div id="comment-modal" class="hidden">
-        <div id="comment-modal-content">
+    <div id="comment-modal" class="modal-overlay hidden">
+        <div class="modal-content">
             <h3>Problem beschreiben</h3>
             <textarea id="comment-textarea" placeholder="z.B. Falsche Betonung, Störgeräusch bei 0:03, ..."></textarea>
             <div class="hotkey-info">Strg+Enter zum Speichern, Esc zum Abbrechen</div>
-            <button id="submit-comment-button" style="background-color: var(--primary-color); color: #fff;">Kommentar speichern</button>
+            <button id="submit-comment-button" style="background-color: var(--primary-color); color: #fff;">Speichern</button>
             <button id="cancel-comment-button">Abbrechen</button>
+        </div>
+    </div>
+    
+    <!-- 9. Mini Guide Modal -->
+    <div id="guide-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Willkommen beim Review-Tool!</h2>
+            <p>Hier sind ein paar Tipps für den Start:</p>
+            <ul>
+                <li><strong>Hören & Entscheiden:</strong> Hören Sie sich den Audio-Abschnitt an. Klicken Sie auf <strong>OK</strong> (Taste <code>Enter</code>) oder <strong>Problem melden</strong> (Taste <code>E</code>).</li>
+                <li><strong>Wort-Navigation:</strong> Klicken Sie auf ein beliebiges Wort im Text, um direkt zu dieser Stelle im Audio zu springen.</li>
+                <li><strong>Abschnitts-Navigation:</strong> Die Punkte über dem Player zeigen alle Abschnitte des Kapitels. Klicken Sie auf einen Punkt, um zu diesem Abschnitt zu wechseln.</li>
+                <li><strong>Tastatur-Steuerung:</strong> Nutzen Sie die <code>Leertaste</code>, um die Wiedergabe zu starten oder zu pausieren.</li>
+            </ul>
+            <button id="close-guide-button" style="background-color: var(--primary-color); color: #fff;">Verstanden!</button>
         </div>
     </div>
 
@@ -390,36 +345,45 @@
             tursoUrl: 'libsql://arn-review-fschutt.aws-us-east-1.turso.io',
             tursoToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NTY2MzU2NzUsImlkIjoiMjQ3ZmVkYmItZTc2Ny00M2ZmLTllYzAtYjQ2OTBhYzFmNTk0IiwicmlkIjoiOWZjMWI2YTYtY2ZiYS00NmRkLWE1NzItYTBhOTZjNzQzMDRkIn0.FFzTzg8hHCC3s0dy6k0P49hD_Rj-T_H1Cb2497XiOoJPCTVvAtcF6I1cQEqbVGucxvKULRkxyJJjUVYe_cRNDQ'
         };
+        const LOCAL_STORAGE_KEY = 'inProgressReview';
+        const GUIDE_SHOWN_KEY = 'guideShown';
 
         // --- DOM Elements ---
-        const readyScreen = document.getElementById('ready-screen');
         const mainApp = document.getElementById('main-app');
-        const loadingStatus = document.getElementById('loading-status');
+        const readyScreen = document.getElementById('ready-screen');
         const startReviewButton = document.getElementById('start-review-button');
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const loadingStatus = document.getElementById('loading-status');
         const sidebar = document.getElementById('sidebar');
-        const audioPlayer = document.getElementById('audio-player');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
         const currentItemDisplay = document.getElementById('current-item-display');
+        const chunkProgressDots = document.getElementById('chunk-progress-dots');
+        const audioPlayer = document.getElementById('audio-player');
         const textDisplay = document.getElementById('text-display');
+        const playPauseButton = document.getElementById('play-pause-button');
+        const timeDisplay = document.getElementById('time-display');
         const progressBarInner = document.getElementById('progress-bar-inner');
-        const sidebarContent = document.getElementById('sidebar-content');
+        const speedControls = document.getElementById('speed-controls');
         const okButton = document.getElementById('ok-button');
         const issueButton = document.getElementById('issue-button');
+        const submitChapterButton = document.getElementById('submit-chapter-button');
         const newChapterButton = document.getElementById('new-chapter-button');
+        const sidebarContent = document.getElementById('sidebar-content');
         const commentModal = document.getElementById('comment-modal');
         const commentTextarea = document.getElementById('comment-textarea');
         const submitCommentButton = document.getElementById('submit-comment-button');
         const cancelCommentButton = document.getElementById('cancel-comment-button');
-        const playPauseButton = document.getElementById('play-pause-button');
-        const timeDisplay = document.getElementById('time-display');
-        const speedControls = document.getElementById('speed-controls');
+        const guideModal = document.getElementById('guide-modal');
+        const closeGuideButton = document.getElementById('close-guide-button');
 
         // --- State Management ---
         let tursoClient, bibleStructure = [], allReviews = {};
         let currentChapterId = null, currentChapterData = null;
         let currentChunkIndex = 1, totalChunksInChapter = 0;
-        let isApproved = false, isModalOpen = false, isAudioPlaying = false;
+        let isModalOpen = false, isAudioPlaying = false;
         let wordSpans = [], wordTimings = [], animationFrameId = null, currentHighlightedWordIndex = -1;
+        // 3. Local state for the current chapter's reviews
+        let currentChapterReviews = {};
 
         async function initializeApp() {
             try {
@@ -440,16 +404,56 @@
             }
         }
         
-        startReviewButton.addEventListener('click', () => {
+        startReviewButton.addEventListener('click', async () => {
             readyScreen.classList.add('hidden');
             mainApp.classList.remove('hidden');
-            startReviewing();
+            setupEventListeners();
+            
+            // 9. Show guide if it's the first time
+            if (!localStorage.getItem(GUIDE_SHOWN_KEY)) {
+                guideModal.classList.remove('hidden');
+            } else {
+                await startReviewing();
+            }
+        });
+        
+        closeGuideButton.addEventListener('click', async () => {
+            guideModal.classList.add('hidden');
+            localStorage.setItem(GUIDE_SHOWN_KEY, 'true');
+            await startReviewing();
         });
 
-        function startReviewing() {
+        async function startReviewing() {
             renderSidebar();
-            loadRandomUnreviewedChapter();
-            setupEventListeners();
+            
+            // 3. Check for in-progress chapter in localStorage
+            const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedState) {
+                try {
+                    const { chapterId, reviews } = JSON.parse(savedState);
+                    const book = bibleStructure.find(b => chapterId.startsWith(b.directory_name));
+                    const chapterNum = chapterId.replace(book.directory_name, '');
+                    currentChapterReviews = reviews;
+                    await loadChapter(book, chapterNum);
+
+                    // Find first unreviewed chunk to start with
+                    let firstUnreviewed = 1;
+                    while(currentChapterReviews[firstUnreviewed] && firstUnreviewed <= totalChunksInChapter) {
+                        firstUnreviewed++;
+                    }
+                    if (firstUnreviewed <= totalChunksInChapter) {
+                        await loadChunk(firstUnreviewed);
+                    } else {
+                        await loadChunk(totalChunksInChapter); // Load last chunk if all are reviewed
+                    }
+                } catch (e) {
+                    console.error("Could not load saved state:", e);
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                    await loadRandomUnreviewedChapter();
+                }
+            } else {
+                await loadRandomUnreviewedChapter();
+            }
         }
 
         async function fetchAllReviews() {
@@ -461,16 +465,35 @@
             }
         }
         
-        async function updateReviewInDb(chapterId, chunkIndex, status) {
-             try {
-                await tursoClient.execute({
-                    sql: "INSERT INTO reviews (chapter_id, chunk_index, status) VALUES (?, ?, ?) ON CONFLICT(chapter_id, chunk_index) DO UPDATE SET status = excluded.status",
-                    args: [chapterId, chunkIndex, status]
-                });
-                if (!allReviews[chapterId]) allReviews[chapterId] = {};
-                allReviews[chapterId][chunkIndex] = status;
-                updateSidebarStatus(chapterId);
-             } catch (error) { console.error("DB Update Fehler:", error); alert("Fehler beim Speichern des Reviews."); }
+        // 3. Batch update to DB
+        async function submitChapterReviewsToDb() {
+            submitChapterButton.disabled = true;
+            submitChapterButton.textContent = "Sende...";
+            try {
+                const tx = await tursoClient.transaction("write");
+                for (const chunkIndex in currentChapterReviews) {
+                    const status = currentChapterReviews[chunkIndex];
+                    await tx.execute({
+                        sql: "INSERT INTO reviews (chapter_id, chunk_index, status) VALUES (?, ?, ?) ON CONFLICT(chapter_id, chunk_index) DO UPDATE SET status = excluded.status",
+                        args: [currentChapterId, parseInt(chunkIndex), status]
+                    });
+                }
+                await tx.commit();
+                
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                await fetchAllReviews(); // Refresh global review state
+                updateSidebarStatus(currentChapterId);
+                currentChapterReviews = {};
+                await loadRandomUnreviewedChapter();
+
+            } catch (error) {
+                console.error("DB Batch Update Fehler:", error);
+                alert("Fehler beim Senden des Kapitels an die Datenbank. Ihre Arbeit ist lokal gespeichert.");
+                if (tx) await tx.close(); // Rollback transaction on error
+            } finally {
+                submitChapterButton.disabled = false;
+                submitChapterButton.textContent = "Kapitel abschließen & senden";
+            }
         }
 
         function getChapterStatus(chapterId, totalChunks) {
@@ -499,29 +522,38 @@
                 textDisplay.textContent = "Herzlichen Glückwunsch! Alle Kapitel wurden überprüft.";
                 return;
             }
-
             const { book, chapterNum } = unreviewedChapters[Math.floor(Math.random() * unreviewedChapters.length)];
-            loadChapter(book, chapterNum);
+            currentChapterReviews = {}; // Clear local reviews for new chapter
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            await loadChapter(book, chapterNum);
         }
 
         async function loadChapter(book, chapterNum) {
             currentChapterData = book;
             currentChapterId = book.directory_name + chapterNum;
             totalChunksInChapter = book.chapters[chapterNum];
-            const reviewsForChapter = allReviews[currentChapterId] || {};
+            
+            // If starting a new chapter that wasn't loaded from storage, clear reviews
+            const savedState = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '{}');
+            if (savedState.chapterId !== currentChapterId) {
+                currentChapterReviews = {};
+            }
+
             let startChunk = 1;
-            for (let i = 1; i <= totalChunksInChapter; i++) if (!reviewsForChapter[i]) { startChunk = i; break; }
-            currentChunkIndex = startChunk;
+            while(currentChapterReviews[startChunk]) { startChunk++; }
+            if (startChunk > totalChunksInChapter) startChunk = 1;
+            
             updateActiveSidebarItem();
-            await loadChunk(currentChunkIndex);
+            renderChunkProgressDots();
+            await loadChunk(startChunk);
         }
         
         async function loadChunk(chunkIndex) {
-            isApproved = false;
             currentChunkIndex = chunkIndex;
             const chapterNum = currentChapterId.match(/\d+$/)[0];
-            currentItemDisplay.textContent = `${currentChapterData.book_name} ${chapterNum} (${currentChunkIndex} / ${totalChunksInChapter})`;
+            currentItemDisplay.textContent = `${currentChapterData.book_name} ${chapterNum}`;
             
+            renderChunkProgressDots();
             await loadTextContentAndPrepareWords();
 
             const paddedChunk = String(chunkIndex).padStart(3, '0');
@@ -538,8 +570,7 @@
 
         async function loadTextContentAndPrepareWords() {
             try {
-                wordSpans = [];
-                wordTimings = [];
+                wordSpans = []; wordTimings = [];
                 textDisplay.innerHTML = 'Text wird geladen...';
                 const paddedChunk = String(currentChunkIndex).padStart(3, '0');
                 const textUrl = `${CONFIG.textBaseUrl}/${currentChapterId}/${paddedChunk}.txt`;
@@ -566,8 +597,7 @@
         
         function calculateWordTimings(duration) {
             if (isNaN(duration) || wordSpans.length === 0) return;
-            let totalChars = 0;
-            wordSpans.forEach(span => totalChars += span.textContent.length);
+            let totalChars = wordSpans.reduce((acc, span) => acc + span.textContent.length, 0);
             const timePerChar = duration / totalChars;
             let cumulativeTime = 0;
             wordTimings = wordSpans.map(span => {
@@ -586,33 +616,38 @@
         }
 
         async function advanceToNext() {
-            if (currentChunkIndex < totalChunksInChapter) {
-                await loadChunk(currentChunkIndex + 1);
+            const nextUnreviewedChunk = findNextUnreviewedChunk();
+            if (nextUnreviewedChunk) {
+                await loadChunk(nextUnreviewedChunk);
             } else {
-                await loadNextLogicalChapter();
+                togglePlayPause(false);
+                // All chunks reviewed, user can now submit.
             }
         }
         
-        async function loadNextLogicalChapter() {
-            // Placeholder for the more complex logic from the original file
-            await loadRandomUnreviewedChapter(); // Simple fallback for now
+        function findNextUnreviewedChunk() {
+            for (let i = currentChunkIndex + 1; i <= totalChunksInChapter; i++) {
+                if (!currentChapterReviews[i]) return i;
+            }
+            for (let i = 1; i < currentChunkIndex; i++) {
+                if (!currentChapterReviews[i]) return i;
+            }
+            return null; // All chunks are reviewed
         }
 
         function togglePlayPause(forcePlay = null) {
-            if (forcePlay === true) isAudioPlaying = false;
-            if (forcePlay === false) isAudioPlaying = true;
-            
-            if (isAudioPlaying) {
-                audioPlayer.pause();
-                playPauseButton.innerHTML = '▶';
-                isAudioPlaying = false;
-                cancelAnimationFrame(animationFrameId);
-            } else {
+            const shouldPlay = forcePlay !== null ? forcePlay : !isAudioPlaying;
+            if (shouldPlay) {
                 audioPlayer.play().then(() => {
                     playPauseButton.innerHTML = '❚❚';
                     isAudioPlaying = true;
                     animationFrameId = requestAnimationFrame(updateHighlightAndProgress);
                 }).catch(e => console.error("Playback error:", e));
+            } else {
+                audioPlayer.pause();
+                playPauseButton.innerHTML = '▶';
+                isAudioPlaying = false;
+                cancelAnimationFrame(animationFrameId);
             }
         }
         
@@ -633,16 +668,14 @@
             const currentTime = audioPlayer.currentTime;
             const duration = audioPlayer.duration;
             
-            // Update Progress Bar & Time
             if (!isNaN(duration)) {
                 progressBarInner.style.width = `${(currentTime / duration) * 100}%`;
                 updateTimeDisplay();
             }
             
-            // Update Word Highlight
             const wordIndex = wordTimings.findIndex(t => currentTime >= t.start && currentTime < t.end);
             if (wordIndex !== -1 && wordIndex !== currentHighlightedWordIndex) {
-                if (currentHighlightedWordIndex !== -1) {
+                if (currentHighlightedWordIndex !== -1 && wordSpans[currentHighlightedWordIndex]) {
                     wordSpans[currentHighlightedWordIndex].classList.remove('highlighted-word');
                 }
                 wordSpans[wordIndex].classList.add('highlighted-word');
@@ -653,27 +686,31 @@
         }
 
         function renderSidebar() {
-            let html = '';
-            bibleStructure.forEach(book => {
-                html += `<div class="book-container"><h3>${book.book_name}</h3><div class="chapter-grid">`;
-                const sortedChapters = Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b));
-                for (const chapterNum of sortedChapters) {
-                    const chapterId = book.directory_name + chapterNum;
-                    html += `<div class="chapter-cell" id="cell-${chapterId}" data-chapter-id="${chapterId}" data-book-name="${book.book_name}" data-chapter-num="${chapterNum}">
-                                <span class="chapter-number">${chapterNum}</span>
-                                <span class="status-dot" id="status-${chapterId}"></span>
-                             </div>`;
-                }
-                html += `</div></div>`;
-            });
-            sidebarContent.innerHTML = html;
+            sidebarContent.innerHTML = bibleStructure.map(book => `
+                <div class="book-container"><h3>${book.book_name}</h3><div class="chapter-grid">
+                ${Object.keys(book.chapters).sort((a, b) => parseInt(a) - parseInt(b)).map(chapterNum => `
+                    <div class="chapter-cell" id="cell-${book.directory_name}${chapterNum}" data-chapter-id="${book.directory_name}${chapterNum}" data-book-name="${book.book_name}" data-chapter-num="${chapterNum}" tabindex="0" role="button">
+                        <span class="chapter-number">${chapterNum}</span>
+                        <span class="status-dot" id="status-${book.directory_name}${chapterNum}"></span>
+                    </div>`).join('')}
+                </div></div>`
+            ).join('');
             
             document.querySelectorAll('.chapter-cell').forEach(cell => {
                 cell.addEventListener('click', () => {
-                    if (cell.classList.contains('disabled-chapter')) return;
                     const book = bibleStructure.find(b => b.book_name === cell.dataset.bookName);
-                    if (book) loadChapter(book, cell.dataset.chapterNum);
+                    if (book) {
+                        currentChapterReviews = {}; // Clear reviews when manually switching
+                        localStorage.removeItem(LOCAL_STORAGE_KEY);
+                        loadChapter(book, cell.dataset.chapterNum);
+                    }
                     sidebar.classList.remove('mobile-open');
+                });
+                cell.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        cell.click();
+                    }
                 });
             });
 
@@ -684,59 +721,101 @@
         
         function updateSidebarStatus(chapterId) {
             const cell = document.getElementById(`cell-${chapterId}`);
-            const dot = document.getElementById(`status-${chapterId}`);
-            if (!cell || !dot) return;
-            
+            if (!cell) return;
+            const dot = cell.querySelector('.status-dot');
             const bookData = bibleStructure.find(b => b.book_name === cell.dataset.bookName);
             const totalChunks = bookData.chapters[cell.dataset.chapterNum];
             const status = getChapterStatus(chapterId, totalChunks);
 
             dot.className = 'status-dot';
-            cell.classList.remove('disabled-chapter');
-            cell.removeAttribute('data-tooltip');
-            
-            if (status === 'ok') {
-                dot.classList.add('status-ok');
-                cell.classList.add('disabled-chapter');
-                cell.dataset.tooltip = 'Kapitel bereits erfolgreich geprüft.';
-            } else if (status === 'issue') {
-                dot.classList.add('status-issue');
-                cell.classList.add('disabled-chapter');
-                cell.dataset.tooltip = 'In diesem Kapitel wurde ein Problem gemeldet.';
-            } else if (status === 'partial') {
-                dot.classList.add('status-partial');
-            }
+            if (status === 'ok') dot.classList.add('status-ok');
+            else if (status === 'issue') dot.classList.add('status-issue');
+            else if (status === 'partial') dot.classList.add('status-partial');
         }
 
+        // 1. Scroll to active chapter
         function updateActiveSidebarItem() {
             document.querySelectorAll('.chapter-cell.active').forEach(cell => cell.classList.remove('active'));
             const activeCell = document.getElementById(`cell-${currentChapterId}`);
             if (activeCell) {
                 activeCell.classList.add('active');
-                activeCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                activeCell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+            }
+        }
+        
+        // 4. Render the progress dots
+        function renderChunkProgressDots() {
+            chunkProgressDots.innerHTML = '';
+            for (let i = 1; i <= totalChunksInChapter; i++) {
+                const dot = document.createElement('span');
+                dot.classList.add('progress-dot');
+                const status = currentChapterReviews[i];
+                if (status === 'OK') {
+                    dot.classList.add('ok');
+                    dot.title = `Abschnitt ${i}: OK`;
+                } else if (status) { // Any other non-empty status is an issue
+                    dot.classList.add('issue');
+                    dot.title = `Abschnitt ${i}: ${status}`;
+                } else {
+                    dot.classList.add('pending');
+                    dot.title = `Abschnitt ${i}: Ausstehend`;
+                }
+                
+                if (i === currentChunkIndex) dot.classList.add('active');
+
+                dot.dataset.chunkIndex = i;
+                dot.setAttribute('role', 'button');
+                dot.setAttribute('tabindex', '0'); // 8. Accessibility
+                dot.addEventListener('click', () => loadChunk(i));
+                dot.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadChunk(i); });
+                chunkProgressDots.appendChild(dot);
+            }
+
+            const reviewedCount = Object.keys(currentChapterReviews).length;
+            if (reviewedCount === totalChunksInChapter) {
+                submitChapterButton.classList.remove('hidden');
+                okButton.disabled = true;
+                issueButton.disabled = true;
+            } else {
+                submitChapterButton.classList.add('hidden');
+                okButton.disabled = false;
+                issueButton.disabled = false;
             }
         }
 
+        // 3. Helper to save state to localStorage
+        function saveCurrentChapterState() {
+            const state = { chapterId: currentChapterId, reviews: currentChapterReviews };
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+        }
+
         function setupEventListeners() {
-            okButton.addEventListener('click', handleOkClick);
+            // Decision Buttons
+            okButton.addEventListener('click', () => handleDecision('OK'));
             issueButton.addEventListener('click', handleIssueClick);
+            submitChapterButton.addEventListener('click', submitChapterReviewsToDb);
             newChapterButton.addEventListener('click', loadRandomUnreviewedChapter);
-            playPauseButton.addEventListener('click', () => togglePlayPause());
+            
+            // UI Controls
             mobileMenuButton.addEventListener('click', () => sidebar.classList.toggle('mobile-open'));
-            document.addEventListener('click', e => {
-                if (!sidebar.contains(e.target) && !mobileMenuButton.contains(e.target)) sidebar.classList.remove('mobile-open');
+            sidebarToggle.addEventListener('click', () => {
+                mainApp.classList.toggle('sidebar-collapsed');
+                sidebarToggle.querySelector('svg').style.transform = mainApp.classList.contains('sidebar-collapsed') ? 'rotate(180deg)' : 'rotate(0deg)';
             });
-            audioPlayer.addEventListener('ended', () => {
-                if (!isApproved) audioPlayer.play(); else {
-                    togglePlayPause(false); // Set to paused state
-                    progressBarInner.style.width = '100%';
-                    audioPlayer.currentTime = audioPlayer.duration;
-                    updateTimeDisplay();
+            document.addEventListener('click', e => {
+                if (sidebar.classList.contains('mobile-open') && !sidebar.contains(e.target) && !mobileMenuButton.contains(e.target)) {
+                    sidebar.classList.remove('mobile-open');
                 }
             });
-            submitCommentButton.addEventListener('click', handleCommentSubmit);
-            cancelCommentButton.addEventListener('click', handleCommentCancel);
-            document.addEventListener('keydown', handleKeydown);
+
+            // Player
+            playPauseButton.addEventListener('click', () => togglePlayPause());
+            audioPlayer.addEventListener('ended', () => {
+                togglePlayPause(false); // Set to paused state
+                progressBarInner.style.width = '100%';
+                audioPlayer.currentTime = audioPlayer.duration;
+                updateTimeDisplay();
+            });
             speedControls.addEventListener('click', e => {
                 if (e.target.tagName === 'BUTTON') {
                     speedControls.querySelector('.active').classList.remove('active');
@@ -744,18 +823,28 @@
                     audioPlayer.playbackRate = parseFloat(e.target.dataset.speed);
                 }
             });
-        }
 
-        async function handleOkClick() {
-            isApproved = true;
-            await updateReviewInDb(currentChapterId, currentChunkIndex, 'OK');
-            togglePlayPause(false); // Stop playback
+            // Comment Modal
+            submitCommentButton.addEventListener('click', handleCommentSubmit);
+            cancelCommentButton.addEventListener('click', handleCommentCancel);
+
+            // Global Hotkeys
+            document.addEventListener('keydown', handleKeydown);
+        }
+        
+        // 3. Unified decision handler
+        async function handleDecision(status) {
+            currentChapterReviews[currentChunkIndex] = status;
+            saveCurrentChapterState();
+            renderChunkProgressDots();
+            togglePlayPause(false);
             await advanceToNext();
         }
 
         function handleIssueClick() {
-            if (isAudioPlaying) togglePlayPause(false); // Pause on issue
-            commentTextarea.value = '';
+            if (isAudioPlaying) togglePlayPause(false);
+            const existingComment = currentChapterReviews[currentChunkIndex];
+            commentTextarea.value = existingComment && existingComment !== 'OK' ? existingComment : '';
             commentModal.classList.remove('hidden');
             commentTextarea.focus();
             isModalOpen = true;
@@ -764,11 +853,9 @@
         async function handleCommentSubmit() {
             const comment = commentTextarea.value.trim();
             if (comment) {
-                isApproved = true;
-                await updateReviewInDb(currentChapterId, currentChunkIndex, comment);
                 commentModal.classList.add('hidden');
                 isModalOpen = false;
-                await advanceToNext();
+                await handleDecision(comment);
             } else { alert('Bitte geben Sie einen Kommentar ein.'); }
         }
 
@@ -778,16 +865,18 @@
         }
 
         function handleKeydown(e) {
-            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') {
-                if (e.ctrlKey && e.key === 'Enter' && !commentModal.classList.contains('hidden')) { e.preventDefault(); handleCommentSubmit(); }
-                if (e.key === 'Escape' && !commentModal.classList.contains('hidden')) { e.preventDefault(); handleCommentCancel(); }
+            if (isModalOpen) {
+                if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); handleCommentSubmit(); }
+                if (e.key === 'Escape') { e.preventDefault(); handleCommentCancel(); }
                 return;
             }
 
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
             switch (e.key) {
-                case 'Enter': e.preventDefault(); if (!isModalOpen) handleOkClick(); break;
-                case 'e': case 'E': e.preventDefault(); if (!isModalOpen) handleIssueClick(); break;
-                case ' ': e.preventDefault(); if (!isModalOpen) togglePlayPause(); break;
+                case 'Enter': e.preventDefault(); if (!okButton.disabled) okButton.click(); break;
+                case 'e': case 'E': e.preventDefault(); if (!issueButton.disabled) issueButton.click(); break;
+                case ' ': e.preventDefault(); togglePlayPause(); break;
                 case 'Escape': if (isModalOpen) { e.preventDefault(); handleCommentCancel(); } break;
             }
         }
