@@ -143,9 +143,18 @@
         }
         .player-controls-top { display: flex; justify-content: center; align-items: center; gap: 1rem; }
         #play-pause-button {
-            background-color: var(--primary-color); color: white; border: none;
-            width: 60px; height: 60px; border-radius: 50%; font-size: 2rem;
-            cursor: pointer; display: flex; justify-content: center; align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            min-width: 60px;
+            min-height: 60px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #time-display { font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--text-secondary-color); width: 100px; text-align: center; }
         .progress-bar-container { width: 100%; height: 8px; background-color: var(--gray-color); border-radius: 4px; cursor: pointer; overflow: hidden; }
@@ -347,6 +356,7 @@
         };
         const LOCAL_STORAGE_KEY = 'inProgressReview';
         const GUIDE_SHOWN_KEY = 'guideShown';
+        const PLAYBACK_SPEED_KEY = 'playbackSpeed';
 
         // --- DOM Elements ---
         const mainApp = document.getElementById('main-app');
@@ -559,7 +569,8 @@
             const paddedChunk = String(chunkIndex).padStart(3, '0');
             const audioSrc = `${CONFIG.baseUrl}/${currentChapterId}/${paddedChunk}.wav`;
             audioPlayer.src = audioSrc;
-            
+            const savedSpeed = localStorage.getItem(PLAYBACK_SPEED_KEY) || '1';
+            audioPlayer.playbackRate = parseFloat(savedSpeed);
             audioPlayer.onloadedmetadata = () => {
                 calculateWordTimings(audioPlayer.duration);
                 updateTimeDisplay();
@@ -774,8 +785,6 @@
             const reviewedCount = Object.keys(currentChapterReviews).length;
             if (reviewedCount === totalChunksInChapter) {
                 submitChapterButton.classList.remove('hidden');
-                okButton.disabled = true;
-                issueButton.disabled = true;
             } else {
                 submitChapterButton.classList.add('hidden');
                 okButton.disabled = false;
@@ -816,11 +825,25 @@
                 audioPlayer.currentTime = audioPlayer.duration;
                 updateTimeDisplay();
             });
+
+            // Set initial speed from localStorage and handle speed changes
+            const savedSpeed = localStorage.getItem(PLAYBACK_SPEED_KEY) || '1';
+            speedControls.querySelector('.active')?.classList.remove('active');
+            const activeButton = speedControls.querySelector(`[data-speed="${savedSpeed}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+            // The rate is primarily set in loadChunk, but setting it here ensures it's correct on first load.
+            audioPlayer.playbackRate = parseFloat(savedSpeed);
+
             speedControls.addEventListener('click', e => {
                 if (e.target.tagName === 'BUTTON') {
-                    speedControls.querySelector('.active').classList.remove('active');
+                    const newSpeed = e.target.dataset.speed;
+                    speedControls.querySelector('.active')?.classList.remove('active');
                     e.target.classList.add('active');
-                    audioPlayer.playbackRate = parseFloat(e.target.dataset.speed);
+                    audioPlayer.playbackRate = parseFloat(newSpeed);
+                    // Save the new speed preference
+                    localStorage.setItem(PLAYBACK_SPEED_KEY, newSpeed);
                 }
             });
 
